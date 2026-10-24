@@ -26,6 +26,7 @@ export interface Item {
 
 export interface Page {
   id: string;
+  date?: string; // YYYY-MM-DD the page was started
   bg: string;
   items: Item[];
 }

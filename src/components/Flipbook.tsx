@@ -17,18 +17,18 @@ interface FlipApi {
   pageFlip: () => { flipNext: () => void; flipPrev: () => void; getCurrentPageIndex: () => number };
 }
 
-export default function Flipbook({ book, onClose, onPdf }: { book: Book; onClose: () => void; onPdf: () => void }) {
+export default function Flipbook({ book, name, onClose }: { book: Book; name: string; onClose: () => void }) {
   const ref = useRef<FlipApi | null>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [cur, setCur] = useState(0);
 
   const pages = useMemo(() => {
-    const list = [coverPage(book), ...book.pages];
+    const list = [coverPage(book, name), ...book.pages];
     // keep an even count so the back cover sits on its own leaf
     if (list.length % 2 === 0) list.push({ id: "blank", bg: "cream", items: [] });
-    list.push(backCover());
+    list.push(backCover(name));
     return list;
-  }, [book]);
+  }, [book, name]);
 
   useEffect(() => {
     const calc = () => {
@@ -61,9 +61,7 @@ export default function Flipbook({ book, onClose, onPdf }: { book: Book; onClose
           ← Back to editing
         </button>
         <div className="flip-title">{book.title}</div>
-        <button className="btn" onClick={onPdf}>
-          Save as PDF
-        </button>
+        <span style={{ width: 120 }} />
       </div>
       <div className="flip-stage">
         {size.w > 0 && (

@@ -3,7 +3,7 @@ import EditorApp from "@/components/EditorApp";
 
 export default function BookPage() {
   return (
-    <Suspense fallback={<div className="center-msg">Opening your scrapbook…</div>}>
+    <Suspense fallback={<div className="center-msg">Opening your page…</div>}>
       <EditorApp />
     </Suspense>
   );

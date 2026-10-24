@@ -10,8 +10,8 @@ const reenie = Reenie_Beanie({ variable: "--font-reenie", subsets: ["latin"], we
 const nunito = Nunito({ variable: "--font-ui", subsets: ["latin"], weight: ["400", "600", "700", "800"] });
 
 export const metadata: Metadata = {
-  title: "Scrappy — digital scrapbooks",
-  description: "Make real-looking scrapbook pages with paper, tape, stamps and photos. Flip through them like a book.",
+  title: "Patchlet — a scrapbook page a day",
+  description: "Make real-looking scrapbook pages with paper, tape, stamps and photos, one day at a time. Flip through them like a book.",
 };
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#f4eefb" };

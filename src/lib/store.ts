@@ -1,8 +1,31 @@
 import { get, set } from "idb-keyval";
 import { Book } from "./types";
 
-const KEY = "scrappy.books.v1";
-const STREAK = "scrappy.streak.v1";
+const KEY = "patchlet.books.v1";
+const STREAK = "patchlet.streak.v1";
+const NAME = "patchlet.name.v1";
+const MAIN = "patchlet-main";
+
+export const getName = () => {
+  try {
+    return localStorage.getItem(NAME) ?? "";
+  } catch {
+    return "";
+  }
+};
+
+export const setName = (n: string) => {
+  try {
+    localStorage.setItem(NAME, n.trim());
+  } catch {}
+};
+
+// Everyone has one book: "<Name>'s Patchlet". Pages are added day by day.
+export async function loadMainBook(name: string): Promise<Book> {
+  const all = await loadBooks();
+  const found = all.find((b) => b.id === MAIN);
+  return { id: MAIN, title: `${name}'s Patchlet`, pages: found?.pages ?? [], updated: found?.updated ?? Date.now() };
+}
 
 export const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-3);
 

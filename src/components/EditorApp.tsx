@@ -1,12 +1,13 @@
 "use client";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BACKGROUNDS } from "@/lib/backgrounds";
-import { exportBookPdf, exportPagePng, exportStory, sharePage } from "@/lib/exporter";
+import { todayKey, todayPage } from "@/lib/daily";
+import { exportPagePng } from "@/lib/exporter";
 import { FONT_CSS, FONT_LABELS, TEXT_COLORS } from "@/lib/fonts";
 import { Category, Pack, buildCategories, loadPacks } from "@/lib/packs";
-import { loadBooks, saveBook, uid } from "@/lib/store";
+import { getName, loadMainBook, readStreak, saveBook, uid } from "@/lib/store";
 import { Book, FontKey, Item, PAGE_H, PAGE_W, Page, PhotoFrame, TextStyle } from "@/lib/types";
 import EditorCanvas from "./EditorCanvas";
 import Flipbook from "./Flipbook";
@@ -30,9 +31,11 @@ async function fileToPhoto(file: File): Promise<{ src: string; aspect: number }>
 const photoHeight = (w: number, aspect: number, frame: PhotoFrame) => (frame === "polaroid" ? w * 0.88 * aspect + w * 0.26 : w * aspect);
 
 export default function EditorApp() {
-  const id = useSearchParams().get("id");
+  const router = useRouter();
+  const pageParam = useSearchParams().get("p");
   const [book, setBook] = useState<Book | null>(null);
-  const [missing, setMissing] = useState(false);
+  const [name, setUserName] = useState("");
+  const [streak, setStreak] = useState(0);
   const [pageIdx, setPageIdx] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("elements");
@@ -42,7 +45,6 @@ export default function EditorApp() {
   const [packs, setPacks] = useState<Pack[]>([]);
   const [draft, setDraft] = useState<{ text: string; font: FontKey; color: string; style: TextStyle }>({ text: "", font: "hand", color: "#2d2a33", style: "plain" });
   const [showFlip, setShowFlip] = useState(false);
-  const [menu, setMenu] = useState(false);
   const [busy, setBusy] = useState("");
   const [toast, setToast] = useState("");
   const [area, setArea] = useState({ w: 0, h: 0 });
@@ -55,13 +57,27 @@ export default function EditorApp() {
 
   // ---- load ----
   useEffect(() => {
+    const n = getName();
+    if (!n) {
+      router.replace("/");
+      return;
+    }
+    setUserName(n);
+    setStreak(readStreak().count);
     loadPacks().then(setPacks);
-    loadBooks().then((all) => {
-      const b = all.find((x) => x.id === id);
-      if (b) setBook(b);
-      else setMissing(true);
+    // open straight onto today's page, creating it if it's a new day
+    loadMainBook(n).then((b) => {
+      let pages = b.pages;
+      const wanted = pageParam ? pages.findIndex((p) => p.id === pageParam) : -1;
+      let at = wanted >= 0 ? wanted : pages.findIndex((p) => p.date === todayKey());
+      if (at < 0) {
+        pages = [...pages, todayPage()];
+        at = pages.length - 1;
+      }
+      setBook({ ...b, pages });
+      setPageIdx(at);
     });
-  }, [id]);
+  }, [router, pageParam]);
 
   // ---- autosave ----
   useEffect(() => {
@@ -190,17 +206,6 @@ export default function EditorApp() {
     setSelectedId(copy.id);
   };
 
-  const reorder = (how: "up" | "down" | "front" | "back") => {
-    if (!page || !selected) return;
-    snapshot();
-    const arr = [...page.items];
-    const i = arr.findIndex((x) => x.id === selected.id);
-    const [it] = arr.splice(i, 1);
-    const j = how === "front" ? arr.length : how === "back" ? 0 : how === "up" ? Math.min(arr.length, i + 1) : Math.max(0, i - 1);
-    arr.splice(j, 0, it);
-    setItems(arr);
-  };
-
   // ---- text ----
   const textTarget = selected?.kind === "text" ? selected : null;
   const form = textTarget
@@ -248,38 +253,9 @@ export default function EditorApp() {
     setPageIdx(book.pages.length);
     setSelectedId(null);
   };
-  const dupPage = () => {
-    if (!page) return;
-    snapshot();
-    const copy: Page = { ...page, id: uid(), items: page.items.map((i) => ({ ...i, id: uid() })) };
-    setPages((ps) => [...ps.slice(0, idx + 1), copy, ...ps.slice(idx + 1)]);
-    setPageIdx(idx + 1);
-  };
-  const delPage = () => {
-    if (!book) return;
-    if (book.pages.length <= 1) return note("A scrapbook needs at least one page");
-    if (!confirm("Delete this page?")) return;
-    snapshot();
-    setPages((ps) => ps.filter((_, i) => i !== idx));
-    setPageIdx(Math.max(0, idx - 1));
-    setSelectedId(null);
-  };
-  const movePage = (d: -1 | 1) => {
-    if (!book) return;
-    const j = idx + d;
-    if (j < 0 || j >= book.pages.length) return;
-    snapshot();
-    setPages((ps) => {
-      const a = [...ps];
-      [a[idx], a[j]] = [a[j], a[idx]];
-      return a;
-    });
-    setPageIdx(j);
-  };
 
   // ---- export ----
   const run = async (label: string, fn: () => Promise<unknown>, done?: string) => {
-    setMenu(false);
     setSelectedId(null);
     setBusy(label);
     try {
@@ -319,16 +295,7 @@ export default function EditorApp() {
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  if (missing)
-    return (
-      <div className="center-msg">
-        <p>That scrapbook couldn’t be found on this device.</p>
-        <Link href="/" className="btn">
-          Back to my scrapbooks
-        </Link>
-      </div>
-    );
-  if (!book || !page) return <div className="center-msg">Opening your scrapbook…</div>;
+  if (!book || !page) return <div className="center-msg">Opening today’s page…</div>;
 
   const k = Math.max(0.2, Math.min((area.w - 24) / PAGE_W, (area.h - 16) / PAGE_H));
   const activeCat = cats.find((c) => c.id === catId) ?? cats[0];
@@ -338,16 +305,20 @@ export default function EditorApp() {
   return (
     <div className="editor">
       <header className="ed-top">
-        <Link href="/" className="btn round" aria-label="Back to my scrapbooks">
+        <Link href="/" className="btn round" aria-label="Back to home" title="Home">
           ‹
         </Link>
-        <input
-          className="title-input"
-          value={book.title}
-          maxLength={40}
-          onChange={(e) => setBook({ ...book, title: e.target.value, updated: Date.now() })}
-          aria-label="Scrapbook title"
-        />
+        <div className="brand">
+          <span className="orb" />
+          <span className="hide-sm">Patchlet</span>
+        </div>
+        <div className="ed-title">
+          <b>{name}</b>
+          <small>
+            {page.date === todayKey() ? "Today’s page" : `Page ${idx + 1}`}
+            {streak > 0 && ` · 🔥 ${streak}`}
+          </small>
+        </div>
         <button className="btn round" onClick={undo} disabled={!past.current.length} aria-label="Undo" title="Undo (Ctrl+Z)">
           ↶
         </button>
@@ -357,19 +328,9 @@ export default function EditorApp() {
         <button className="btn primary" onClick={() => { setSelectedId(null); setShowFlip(true); }}>
           📖 <span className="hide-sm">Flip through</span>
         </button>
-        <div className="menu-wrap">
-          <button className="btn" onClick={() => setMenu((m) => !m)}>
-            ⬇ <span className="hide-sm">Export</span>
-          </button>
-          {menu && (
-            <div className="menu" onMouseLeave={() => setMenu(false)}>
-              <button onClick={() => run("Saving page…", () => exportPagePng(book, page, idx), "Page saved as PNG")}>This page · PNG</button>
-              <button onClick={() => run("Making story image…", () => exportStory(book, page, idx), "Story image saved")}>This page · Story (9:16)</button>
-              <button onClick={() => run("Sharing…", () => sharePage(book, page))}>Share this page…</button>
-              <button onClick={() => run("Building PDF…", () => exportBookPdf(book, (n, t) => setBusy(`Building PDF ${n}/${t}…`)), "PDF saved")}>Whole book · PDF</button>
-            </div>
-          )}
-        </div>
+        <button className="btn" onClick={() => run("Saving image…", () => exportPagePng(book, page, idx), "Saved as an image")}>
+          ⬇ <span className="hide-sm">Save as image</span>
+        </button>
       </header>
 
       <div className="ed-body">
@@ -532,18 +493,6 @@ export default function EditorApp() {
             )}
           </div>
 
-          {selected && (
-            <div className="ctx">
-              <button onClick={() => reorder("front")} title="Bring to front">⤒</button>
-              <button onClick={() => reorder("up")} title="Forward">↑</button>
-              <button onClick={() => reorder("down")} title="Backward">↓</button>
-              <button onClick={() => reorder("back")} title="Send to back">⤓</button>
-              {selected.kind === "img" && <button onClick={() => patchSelected({ flip: !selected.flip })} title="Flip">⇋</button>}
-              <button onClick={() => duplicateItem(selected.id)} title="Duplicate">⧉</button>
-              <button className="danger" onClick={() => deleteItem(selected.id)} title="Delete">🗑</button>
-            </div>
-          )}
-
           <div className="strip">
             <div className="strip-scroll">
               {book.pages.map((p, i) => (
@@ -554,17 +503,11 @@ export default function EditorApp() {
               ))}
               <button className="pthumb add" onClick={addPage} aria-label="Add page">+</button>
             </div>
-            <div className="strip-actions">
-              <button onClick={() => movePage(-1)} disabled={idx === 0} title="Move page earlier">◀</button>
-              <button onClick={() => movePage(1)} disabled={idx === book.pages.length - 1} title="Move page later">▶</button>
-              <button onClick={dupPage} title="Duplicate page">⧉</button>
-              <button onClick={delPage} className="danger" title="Delete page">🗑</button>
-            </div>
           </div>
         </main>
       </div>
 
-      {showFlip && <Flipbook book={book} onClose={() => setShowFlip(false)} onPdf={() => run("Building PDF…", () => exportBookPdf(book, (n, t) => setBusy(`Building PDF ${n}/${t}…`)), "PDF saved")} />}
+      {showFlip && <Flipbook book={book} name={name} onClose={() => setShowFlip(false)} />}
       {busy && <div className="busy">{busy}</div>}
       {toast && <div className="toast">{toast}</div>}
     </div>

@@ -133,7 +133,6 @@ export default function EditorCanvas({ page, k, selectedId, onSelect, onItems, o
                 {sel && (
                   <>
                     <Handle pos="tl" size={hs} title="Delete" onClick={() => onDelete(it.id)} icon="✕" />
-                    <Handle pos="tr" size={hs} title="Duplicate" onClick={() => onDuplicate(it.id)} icon="⧉" />
                     <div
                       onPointerDown={(e) => downHandle(e, it)}
                       onPointerMove={move}
