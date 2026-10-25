@@ -10,7 +10,7 @@ export interface Sticker {
   h: number;
 }
 
-export const STICKER_CATS = [
+const _OLD_CATS = [
   { id: "paper", label: "Torn paper" },
   { id: "pattern", label: "Patterned" },
   { id: "tape", label: "Washi tape" },
@@ -21,8 +21,8 @@ export const STICKER_CATS = [
   { id: "fabric", label: "Fabric & ribbon" },
 ];
 
-const uri = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-const svgWrap = (w: number, h: number, inner: string) =>
+export const uri = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+export const svgWrap = (w: number, h: number, inner: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${inner}</svg>`;
 
 const out: Sticker[] = [];
@@ -31,7 +31,7 @@ const add = (id: string, cat: string, label: string, w: number, h: number, inner
 
 // ---------- shared filters ----------
 
-const grain = (id: string, seed = 3, strength = 1.2) => `
+export const grain = (id: string, seed = 3, strength = 1.2) => `
 <filter id="${id}" x="0" y="0" width="100%" height="100%">
   <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" seed="${seed}" result="g"/>
   <feColorMatrix in="g" type="matrix" values="0 0 0 0 0.32  0 0 0 0 0.26  0 0 0 0 0.2  ${strength} 0 0 0 -0.5" result="ga"/>
@@ -39,7 +39,7 @@ const grain = (id: string, seed = 3, strength = 1.2) => `
   <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="gin"/></feMerge>
 </filter>`;
 
-const torn = (id: string, seed: number, scale = 20, freq = 0.04) => `
+export const torn = (id: string, seed: number, scale = 20, freq = 0.04) => `
 <filter id="${id}" x="-12%" y="-12%" width="124%" height="124%">
   <feTurbulence type="fractalNoise" baseFrequency="${freq}" numOctaves="4" seed="${seed}" result="n"/>
   <feDisplacementMap in="SourceGraphic" in2="n" scale="${scale}" xChannelSelector="R" yChannelSelector="G" result="d"/>
@@ -49,15 +49,15 @@ const torn = (id: string, seed: number, scale = 20, freq = 0.04) => `
   <feMerge><feMergeNode in="d"/><feMergeNode in="gin"/></feMerge>
 </filter>`;
 
-const rough = (id: string, scale = 3) => `
-<filter id="${id}" x="-5%" y="-5%" width="110%" height="110%">
+export const rough = (id: string, scale = 3) => `
+<filter id="${id}" filterUnits="userSpaceOnUse" x="-40" y="-40" width="2400" height="2400">
   <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="2" seed="4" result="n"/>
   <feDisplacementMap in="SourceGraphic" in2="n" scale="${scale}" xChannelSelector="R" yChannelSelector="G"/>
 </filter>`;
 
 // ---------- palettes ----------
 
-const PAPERS: [string, string][] = [
+export const PAPERS: [string, string][] = [
   ["cream", "#efe3cc"],
   ["kraft", "#c9a679"],
   ["parchment", "#e3cfa6"],
@@ -72,7 +72,7 @@ const PAPERS: [string, string][] = [
   ["plum", "#8d7aa8"],
 ];
 
-const TAPES: [string, string][] = [
+export const TAPES: [string, string][] = [
   ["lilac", "#b9a8d8"],
   ["rose", "#e8b4bc"],
   ["peach", "#f2cf9a"],
@@ -83,7 +83,7 @@ const TAPES: [string, string][] = [
   ["plum", "#8d7aa8"],
 ];
 
-const INKS: [string, string][] = [
+export const INKS: [string, string][] = [
   ["ink", "#2d2a33"],
   ["sepia", "#6b5744"],
   ["plum", "#6a4c93"],
@@ -218,7 +218,7 @@ for (let i = 0; i < 6; i++) {
   const [, c] = PAPERS[(i * 2 + 1) % PAPERS.length];
   add(
     `ticket-${i}`,
-    "tags",
+    "tickets",
     "ticket",
     250,
     110,
@@ -311,7 +311,7 @@ doodles.forEach(([name, body, w, h]) =>
 ["#b8bcc4", "#c9a24a", "#d98a9a", "#8fb0d0", "#a9c4a0"].forEach((c, i) =>
   add(
     `clip-${i}`,
-    "metal",
+    "clips",
     "paper clip",
     60,
     150,
@@ -325,7 +325,7 @@ doodles.forEach(([name, body, w, h]) =>
 ["#d9667a", "#6a8fd0", "#e0b24a", "#7fb08a", "#9a7ad0", "#f0f0f0"].forEach((c, i) =>
   add(
     `pin-${i}`,
-    "metal",
+    "clips",
     "push pin",
     90,
     120,
@@ -341,7 +341,7 @@ doodles.forEach(([name, body, w, h]) =>
 ["#8c2a35", "#5a3a7a", "#2f5f4a", "#b7863a", "#2a4a7a"].forEach((c, i) =>
   add(
     `seal-${i}`,
-    "metal",
+    "stamps",
     "wax seal",
     130,
     130,

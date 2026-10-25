@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { bgCss } from "@/lib/backgrounds";
+import { pageBackground } from "@/lib/pagebg";
 import { PAGE_H, PAGE_W, Page } from "@/lib/types";
 import ItemBody, { itemStyle } from "./ItemBody";
 
@@ -11,7 +11,7 @@ export default function PageStatic({ page, width, className }: { page: Page; wid
     <div className={className} style={{ width, height: PAGE_H * k, overflow: "hidden", position: "relative", flexShrink: 0 }}>
       <div
         data-page-inner
-        style={{ width: PAGE_W, height: PAGE_H, transform: `scale(${k})`, transformOrigin: "0 0", background: bgCss(page.bg), backgroundSize: "100% 100%", position: "relative" }}
+        style={{ width: PAGE_W, height: PAGE_H, transform: `scale(${k})`, transformOrigin: "0 0", background: pageBackground(page), position: "relative" }}
       >
         {page.items.map((it) => (
           <div key={it.id} style={itemStyle(it)}>

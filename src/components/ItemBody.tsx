@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { BY_ID } from "@/lib/catalog";
 import { FONT_CSS } from "@/lib/fonts";
 import { Item } from "@/lib/types";
 
@@ -29,10 +30,11 @@ const SHADOW = "drop-shadow(1px 2px 2px rgba(60,40,20,.32)) drop-shadow(0 6px 8p
 
 export default function ItemBody({ item }: { item: Item }) {
   if (item.kind === "img") {
+    const src = item.ref ? BY_ID[item.ref]?.src : item.src;
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={item.src}
+        src={src}
         alt=""
         draggable={false}
         style={{ width: "100%", height: "100%", display: "block", filter: SHADOW, transform: item.flip ? "scaleX(-1)" : undefined, pointerEvents: "none" }}

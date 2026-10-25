@@ -1,6 +1,6 @@
 "use client";
 import React, { useRef } from "react";
-import { bgCss } from "@/lib/backgrounds";
+import { pageBackground } from "@/lib/pagebg";
 import { PAGE_H, PAGE_W, Item, Page } from "@/lib/types";
 import ItemBody, { itemStyle } from "./ItemBody";
 
@@ -115,7 +115,7 @@ export default function EditorCanvas({ page, k, selectedId, onSelect, onItems, o
         <div
           data-page-inner
           onPointerDown={() => onSelect(null)}
-          style={{ width: PAGE_W, height: PAGE_H, transform: `scale(${k})`, transformOrigin: "0 0", background: bgCss(page.bg), backgroundSize: "100% 100%", position: "relative" }}
+          style={{ width: PAGE_W, height: PAGE_H, transform: `scale(${k})`, transformOrigin: "0 0", background: pageBackground(page), position: "relative" }}
         >
           {page.items.map((it) => {
             const sel = it.id === selectedId;

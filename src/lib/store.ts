@@ -1,37 +1,34 @@
 import { get, set } from "idb-keyval";
 import { Book } from "./types";
 
-const KEY = "patchlet.books.v1";
-const STREAK = "patchlet.streak.v1";
-const NAME = "patchlet.name.v1";
-const MAIN = "patchlet-main";
+// Data is kept per account on the device: "local" when no one is signed in (or Firebase isn't set up).
+let scope = "local";
+export const setScope = (s: string) => {
+  scope = s || "local";
+};
+const booksKey = () => `patchlet.books.v2.${scope}`;
+const streakKey = () => `patchlet.streak.v2.${scope}`;
+const nameKey = () => `patchlet.name.v2.${scope}`;
+export const MAIN_ID = "patchlet-main";
+
+export const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-3);
 
 export const getName = () => {
   try {
-    return localStorage.getItem(NAME) ?? "";
+    return localStorage.getItem(nameKey()) ?? "";
   } catch {
     return "";
   }
 };
-
 export const setName = (n: string) => {
   try {
-    localStorage.setItem(NAME, n.trim());
+    localStorage.setItem(nameKey(), n.trim());
   } catch {}
 };
 
-// Everyone has one book: "<Name>'s Patchlet". Pages are added day by day.
-export async function loadMainBook(name: string): Promise<Book> {
-  const all = await loadBooks();
-  const found = all.find((b) => b.id === MAIN);
-  return { id: MAIN, title: `${name}'s Patchlet`, pages: found?.pages ?? [], updated: found?.updated ?? Date.now() };
-}
-
-export const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-3);
-
 export async function loadBooks(): Promise<Book[]> {
   try {
-    return (await get<Book[]>(KEY)) ?? [];
+    return (await get<Book[]>(booksKey())) ?? [];
   } catch {
     return [];
   }
@@ -39,12 +36,13 @@ export async function loadBooks(): Promise<Book[]> {
 
 export async function saveBooks(books: Book[]) {
   try {
-    await set(KEY, books);
+    await set(booksKey(), books);
   } catch {}
 }
 
-export function newBook(title: string): Book {
-  return { id: uid(), title, pages: [{ id: uid(), bg: "cream", items: [] }], updated: Date.now() };
+export async function loadMainBook(name: string): Promise<Book> {
+  const found = (await loadBooks()).find((b) => b.id === MAIN_ID);
+  return { id: MAIN_ID, title: `${name}'s Patchlet`, pages: found?.pages ?? [], updated: found?.updated ?? Date.now() };
 }
 
 export async function saveBook(book: Book) {
@@ -56,16 +54,24 @@ export async function saveBook(book: Book) {
   markToday();
 }
 
+export async function clearAllLocal() {
+  await saveBooks([]);
+  try {
+    localStorage.removeItem(streakKey());
+    localStorage.removeItem(nameKey());
+  } catch {}
+}
+
 // ---- streak: consecutive days with at least one saved edit ----
-const day = (d: Date) => d.toISOString().slice(0, 10);
+export const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 export function readStreak(): { count: number; days: string[] } {
   try {
-    const days: string[] = JSON.parse(localStorage.getItem(STREAK) ?? "[]");
+    const days: string[] = JSON.parse(localStorage.getItem(streakKey()) ?? "[]");
     let count = 0;
     const d = new Date();
-    if (!days.includes(day(d))) d.setDate(d.getDate() - 1); // today not done yet: still alive
-    while (days.includes(day(d))) {
+    if (!days.includes(dayKey(d))) d.setDate(d.getDate() - 1); // today not done yet: still alive
+    while (days.includes(dayKey(d))) {
       count++;
       d.setDate(d.getDate() - 1);
     }
@@ -77,8 +83,15 @@ export function readStreak(): { count: number; days: string[] } {
 
 export function markToday() {
   try {
-    const days: string[] = JSON.parse(localStorage.getItem(STREAK) ?? "[]");
-    const t = day(new Date());
-    if (!days.includes(t)) localStorage.setItem(STREAK, JSON.stringify([...days, t].slice(-400)));
+    const days: string[] = JSON.parse(localStorage.getItem(streakKey()) ?? "[]");
+    const t = dayKey(new Date());
+    if (!days.includes(t)) localStorage.setItem(streakKey(), JSON.stringify([...days, t].slice(-400)));
+  } catch {}
+}
+
+export function mergeStreakDays(extra: string[]) {
+  try {
+    const days: string[] = JSON.parse(localStorage.getItem(streakKey()) ?? "[]");
+    localStorage.setItem(streakKey(), JSON.stringify(Array.from(new Set([...days, ...extra])).sort().slice(-400)));
   } catch {}
 }

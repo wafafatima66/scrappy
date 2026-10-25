@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Patchlet</string>
+    <string name="title_activity_main">Patchlet</string>
+    <string name="package_name">com.patchlet.app</string>
+    <string name="custom_url_scheme">com.patchlet.app</string>
+</resources>

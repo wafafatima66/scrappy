@@ -1,10 +1,15 @@
 "use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
+import { loadLocalAvatar, useSession } from "@/lib/auth";
+import { dayPages } from "@/lib/book";
+import { loadBookFor } from "@/lib/bookload";
 import { todayKey } from "@/lib/daily";
-import { getName, loadMainBook, readStreak, setName } from "@/lib/store";
+import { scheduleStreakReminders } from "@/lib/notify";
+import { readStreak } from "@/lib/store";
 import { Book } from "@/lib/types";
+import AuthScreen from "./AuthScreen";
+import Avatar from "./Avatar";
 import Flipbook from "./Flipbook";
 import PageStatic from "./PageStatic";
 
@@ -20,67 +25,38 @@ const label = (date: string | undefined, i: number) => {
 };
 
 export default function HomeApp() {
-  const router = useRouter();
-  const [state, setState] = useState<"loading" | "welcome" | "home">("loading");
-  const [name, setNameState] = useState("");
-  const [input, setInput] = useState("");
+  const s = useSession();
   const [book, setBook] = useState<Book | null>(null);
   const [streak, setStreak] = useState({ count: 0, days: [] as string[] });
   const [flip, setFlip] = useState(false);
 
   useEffect(() => {
-    const n = getName();
-    if (!n) {
-      setState("welcome");
-      return;
-    }
-    setNameState(n);
-    setStreak(readStreak());
-    loadMainBook(n).then((b) => {
+    if (s.status !== "in") return;
+    loadLocalAvatar();
+    loadBookFor(s).then((b) => {
       setBook(b);
-      setState("home");
+      const st = readStreak();
+      setStreak(st);
+      const done = b.pages.some((p) => p.kind === "day" && p.date === todayKey() && p.items.length > 0);
+      void scheduleStreakReminders({ name: s.name, streak: st.count, doneToday: done });
     });
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.status, s.uid, s.name]);
 
-  if (state === "loading") return <div className="center-msg">Opening Patchlet…</div>;
+  if (s.status === "loading") return <div className="center-msg">Opening Patchlet…</div>;
+  if (s.status === "out") return <AuthScreen />;
 
-  if (state === "welcome") {
-    const go = (e: React.FormEvent) => {
-      e.preventDefault();
-      const n = input.trim();
-      if (!n) return;
-      setName(n);
-      router.push("/book");
-    };
-    return (
-      <main className="welcome">
-        <div className="brand big-brand">
-          <span className="orb" />
-          Patchlet
-        </div>
-        <form className="welcome-card" onSubmit={go}>
-          <div className="daily-tape" />
-          <small>Welcome</small>
-          <h1>What should we call you?</h1>
-          <p>Your name goes on the cover and the last page of your Patchlet book.</p>
-          <input autoFocus value={input} onChange={(e) => setInput(e.target.value)} placeholder="Your name" maxLength={20} aria-label="Your name" />
-          <button className="btn primary big" disabled={!input.trim()}>
-            Start today’s page →
-          </button>
-        </form>
-        <p className="foot">Everything stays on this device. No account needed.</p>
-      </main>
-    );
-  }
-
-  const pages = [...(book?.pages ?? [])].map((p, i) => ({ p, i })).reverse();
-  const doneToday = !!book?.pages.some((p) => p.date === todayKey() && p.items.length > 0);
+  const days = book ? dayPages(book) : [];
+  const pages = days.map((p, i) => ({ p, i })).reverse();
+  const doneToday = days.some((p) => p.date === todayKey() && p.items.length > 0);
   const week = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     return { key, label: d.toLocaleDateString(undefined, { weekday: "narrow" }), done: streak.days.includes(key), today: i === 6 };
   });
+  const cover = book?.pages[0];
+  const back = book?.pages[book.pages.length - 1];
 
   return (
     <div className="home">
@@ -89,24 +65,29 @@ export default function HomeApp() {
           <span className="orb" />
           Patchlet
         </div>
-        <div className="streak" title="Days in a row you've made something">
-          <span className="flame">🔥</span>
-          <b>{streak.count}</b>
-          <span className="hide-sm">day streak</span>
+        <div className="head-right">
+          <div className="streak" title="Days in a row you've made something">
+            <span className="flame">🔥</span>
+            <b>{streak.count}</b>
+            <span className="hide-sm">day streak</span>
+          </div>
+          <Link href="/profile" className="avatar-btn" aria-label="Profile and settings">
+            <Avatar name={s.name} url={s.photoURL} size={44} />
+          </Link>
         </div>
       </header>
 
       <section className="hero">
         <div>
           <h1>
-            {greet()}, {name} ✿
+            {greet()}, {s.name} ✿
           </h1>
           <p>One little page a day. Cut, tape and tuck your memories in, then flip through them like a book.</p>
           <div className="hero-actions">
             <Link href="/book" className="btn primary big">
               {doneToday ? "Open today’s page" : "Start today’s page"} →
             </Link>
-            <button className="btn big" onClick={() => setFlip(true)} disabled={!pages.length}>
+            <button className="btn big" onClick={() => setFlip(true)} disabled={!book}>
               📖 Flip through
             </button>
           </div>
@@ -122,16 +103,44 @@ export default function HomeApp() {
               </span>
             ))}
           </div>
-          <h3>
-            {streak.count > 0 ? `${streak.count} ${streak.count === 1 ? "day" : "days"} in a row` : "Make your first page today"}
-          </h3>
+          <h3>{streak.count > 0 ? `${streak.count} ${streak.count === 1 ? "day" : "days"} in a row` : "Make your first page today"}</h3>
         </div>
       </section>
+
+      <h2 className="sec">Cover &amp; back page</h2>
+      <div className="books small">
+        {cover && (
+          <Link href="/book?p=cover" className="book-card page-card">
+            <div className="cover">
+              <PageStatic page={cover} width={150} />
+            </div>
+            <div className="meta">
+              <div>
+                <h3>Front cover</h3>
+                <small>Tap to customise</small>
+              </div>
+            </div>
+          </Link>
+        )}
+        {back && (
+          <Link href="/book?p=back" className="book-card page-card">
+            <div className="cover">
+              <PageStatic page={back} width={150} />
+            </div>
+            <div className="meta">
+              <div>
+                <h3>End page</h3>
+                <small>Tap to customise</small>
+              </div>
+            </div>
+          </Link>
+        )}
+      </div>
 
       <h2 className="sec">My pages</h2>
       {pages.length === 0 ? (
         <div className="empty">
-          <p>Nothing here yet. Your pages will show up as soon as you add something to today’s page.</p>
+          <p>Nothing here yet. Your pages show up as soon as you add something to today’s page.</p>
         </div>
       ) : (
         <div className="books">
@@ -151,8 +160,10 @@ export default function HomeApp() {
         </div>
       )}
 
-      {flip && book && <Flipbook book={book} name={name} onClose={() => setFlip(false)} />}
-      <footer className="foot">Everything is saved on this device. No account needed.</footer>
+      {flip && book && <Flipbook book={book} name={s.name} onClose={() => setFlip(false)} />}
+      <footer className="foot">
+        {s.local ? "Saved on this device." : "Backed up to your account."} · <Link href="/privacy">Privacy</Link>
+      </footer>
     </div>
   );
 }

@@ -8,7 +8,7 @@ export interface Bg {
   dark?: boolean;
 }
 
-const uri = (svg: string) => `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`;
+const uri = (svg: string) => `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") 0 0 / 100% 100% no-repeat`;
 
 function paper(base: string, opts: { crumple?: number; fibre?: number; overlay?: string; light?: string } = {}) {
   const { crumple = 0.6, fibre = 0.5, overlay = "", light = "#ffffff" } = opts;
@@ -63,5 +63,24 @@ export const BACKGROUNDS: Bg[] = [
   { id: "night", label: "Night", swatch: "#3a3358", dark: true, css: paper("#3a3358", { crumple: 0.5, fibre: 0.3, light: "#cfc6ff" }) },
 ];
 
-export const BG_MAP: Record<string, Bg> = Object.fromEntries(BACKGROUNDS.map((b) => [b.id, b]));
-export const bgCss = (id: string) => (BG_MAP[id] ?? BG_MAP.cream).css;
+// Plain, flat paper colours (no texture)
+export const PLAIN: Bg[] = [
+  ["#ffffff", "Plain white"],
+  ["#fbf6ea", "Plain ivory"],
+  ["#f6e3e6", "Plain pink"],
+  ["#e6e0f5", "Plain lilac"],
+  ["#dfeadb", "Plain mint"],
+  ["#dcecf7", "Plain sky"],
+  ["#f7efc9", "Plain butter"],
+  ["#2b2833", "Plain charcoal"],
+].map(([c, label]) => ({ id: `color:${c}`, label, swatch: c, css: `linear-gradient(${c}, ${c})`, dark: c === "#2b2833" }));
+
+export const BG_MAP: Record<string, Bg> = Object.fromEntries([...BACKGROUNDS, ...PLAIN].map((b) => [b.id, b]));
+
+export const bgCss = (id: string) => {
+  if (id.startsWith("color:")) {
+    const c = id.slice(6);
+    return `linear-gradient(${c}, ${c})`;
+  }
+  return (BG_MAP[id] ?? BG_MAP.cream).css;
+};

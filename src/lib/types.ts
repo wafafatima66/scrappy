@@ -8,7 +8,8 @@ export type PhotoFrame = "polaroid" | "plain" | "torn";
 export interface Item {
   id: string;
   kind: "img" | "text" | "photo";
-  src?: string; // sticker url / data uri / photo data url
+  ref?: string; // catalog id (keeps saved pages small)
+  src?: string; // pack url, date-stamp svg or photo url / data uri
   text?: string;
   font?: FontKey;
   color?: string;
@@ -24,13 +25,19 @@ export interface Item {
   seed?: number;
 }
 
+export type PageKind = "cover" | "day" | "back";
+
 export interface Page {
   id: string;
+  kind?: PageKind;
   date?: string; // YYYY-MM-DD the page was started
-  bg: string;
+  bg: string; // background id, or "color:#rrggbb"
+  frame?: string; // page border id
   items: Item[];
+  updated?: number;
 }
 
+// pages[0] is the cover, pages[last] the back cover, everything between is a day page
 export interface Book {
   id: string;
   title: string;

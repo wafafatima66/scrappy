@@ -6,9 +6,20 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "android:sync": "next build && cap sync android",
+    "android:open": "cap open android",
+    "android:icons": "node scripts_make_icons.mjs && capacitor-assets generate --android --assetPath assets"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/local-notifications": "^8.3.1",
+    "@capacitor/share": "^8.0.3",
+    "@capacitor/status-bar": "^8.0.4",
+    "firebase": "^13.1.0",
     "html-to-image": "^1.11.13",
     "idb-keyval": "^6.3.0",
     "jspdf": "^4.2.1",
@@ -18,11 +29,14 @@
     "react-pageflip": "^2.0.3"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.5.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
+    "sharp": "^0.35.5",
     "typescript": "^5"
   }
 }

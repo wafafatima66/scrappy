@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import HTMLFlipBook from "react-pageflip";
-import { backCover, coverPage } from "@/lib/cover";
 import { Book, Page } from "@/lib/types";
 import PageStatic from "./PageStatic";
 
@@ -17,18 +16,17 @@ interface FlipApi {
   pageFlip: () => { flipNext: () => void; flipPrev: () => void; getCurrentPageIndex: () => number };
 }
 
-export default function Flipbook({ book, name, onClose }: { book: Book; name: string; onClose: () => void }) {
+export default function Flipbook({ book, onClose }: { book: Book; name?: string; onClose: () => void }) {
   const ref = useRef<FlipApi | null>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [cur, setCur] = useState(0);
 
+  // pages are already [cover, ...days, back]; keep the total even so the back cover lands on its own leaf
   const pages = useMemo(() => {
-    const list = [coverPage(book, name), ...book.pages];
-    // keep an even count so the back cover sits on its own leaf
-    if (list.length % 2 === 0) list.push({ id: "blank", bg: "cream", items: [] });
-    list.push(backCover(name));
+    const list = [...book.pages];
+    if (list.length % 2 === 1) list.splice(list.length - 1, 0, { id: "blank", bg: "cream", items: [] });
     return list;
-  }, [book, name]);
+  }, [book]);
 
   useEffect(() => {
     const calc = () => {
@@ -103,7 +101,7 @@ export default function Flipbook({ book, name, onClose }: { book: Book; name: st
           ‹
         </button>
         <span className="flip-count">
-          {cur === 0 ? "Cover" : `Page ${Math.min(cur, book.pages.length)} of ${book.pages.length}`}
+          {cur === 0 ? "Cover" : cur >= pages.length - 1 ? "The end" : `Page ${cur} of ${book.pages.length - 2}`}
         </span>
         <button className="btn round" onClick={() => ref.current?.pageFlip().flipNext()} aria-label="Next page">
           ›
