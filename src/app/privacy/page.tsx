@@ -3,7 +3,7 @@ import Link from "next/link";
 export const metadata = { title: "Privacy policy — Patchlet" };
 
 // Replace CONTACT_EMAIL and the date before you publish to the Play Store.
-const CONTACT_EMAIL = "your-email@example.com";
+const CONTACT_EMAIL = "awhs.family@gmail.com";
 const UPDATED = "25 October 2026";
 
 export default function Privacy() {
