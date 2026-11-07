@@ -171,4 +171,59 @@ LABELS.forEach((t, i) =>
   }),
 );
 
+
+// ---------- decorations used on the default covers ----------
+function rr(seed: number) {
+  let x = (seed * 9301 + 49297) % 233280;
+  return () => {
+    x = (x * 9301 + 49297) % 233280;
+    return x / 233280;
+  };
+}
+
+(() => {
+  const r = rr(11);
+  const greys = ["#c9ced6", "#9aa1ad", "#e8ebf0", "#6f7683", "#b7bdc8", "#d8dce3"];
+  let tiles = "";
+  for (let gx = 0; gx < 15; gx++) {
+    for (let gy = 0; gy < 15; gy++) {
+      const x = 22 + gx * 11.7;
+      const y = 32 + gy * 11.7;
+      if (Math.hypot(x + 5.8 - 100, y + 5.8 - 117) > 82) continue;
+      tiles += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="10.6" height="10.6" fill="${greys[Math.floor(r() * greys.length)]}"/>`;
+      if (r() < 0.12) tiles += `<rect x="${(x + 3).toFixed(1)}" y="${(y + 3).toFixed(1)}" width="3" height="3" fill="#fff"/>`;
+    }
+  }
+  add(
+    "deco-discoball",
+    "doodles",
+    "disco ball",
+    200,
+    210,
+    `<defs><radialGradient id="dbs" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".55"/></radialGradient><clipPath id="dbc"><circle cx="100" cy="117" r="85"/></clipPath></defs>
+     <path d="M100 0V32" stroke="#bbb" stroke-width="3"/><rect x="92" y="22" width="16" height="12" rx="2" fill="#9aa1ad"/>
+     <g clip-path="url(#dbc)">${tiles}<rect width="200" height="210" fill="url(#dbs)"/></g>
+     <circle cx="100" cy="117" r="85" fill="none" stroke="#000" stroke-opacity=".25" stroke-width="2"/>`,
+    170,
+    180,
+  );
+
+  const holes = Array.from({ length: 22 }, (_, k) => `<circle cx="${24 + k * 12.3}" cy="14" r="3.4" fill="#000"/><circle cx="${24 + k * 12.3}" cy="196" r="3.4" fill="#000"/>`).join("") + Array.from({ length: 13 }, (_, k) => `<circle cx="14" cy="${28 + k * 12.5}" r="3.4" fill="#000"/><circle cx="306" cy="${28 + k * 12.5}" r="3.4" fill="#000"/>`).join("");
+  add(
+    "deco-idcard",
+    "tags",
+    "photo ID card",
+    320,
+    210,
+    `<defs><mask id="idm"><rect width="320" height="210" fill="#fff"/>${holes}</mask>${grain("idg", 4, 0.8)}</defs>
+     <g filter="url(#idg)"><g mask="url(#idm)"><rect x="6" y="6" width="308" height="198" rx="14" fill="#f0a9c1"/></g><rect x="22" y="26" width="276" height="158" rx="6" fill="#f9dbe5"/></g>
+     <rect x="36" y="50" width="96" height="118" fill="#d8d2cf"/><circle cx="84" cy="92" r="22" fill="#9d948f"/><path d="M42 168C44 128 124 128 126 168Z" fill="#9d948f"/>
+     <text x="150" y="46" font-family="'Courier New', monospace" font-size="11" font-weight="bold" fill="#7a3a52">MEMBER CLUB · ID</text>
+     ${[0, 1, 2, 3].map((k) => `<rect x="150" y="${64 + k * 20}" width="${k === 0 ? 120 : 140 - k * 14}" height="6" rx="3" fill="#c98aa3"/>`).join("")}
+     <circle cx="262" cy="150" r="22" fill="none" stroke="#3d6fb5" stroke-width="3" opacity=".75"/><text x="262" y="155" text-anchor="middle" font-family="Georgia, serif" font-size="13" font-weight="bold" fill="#3d6fb5" opacity=".8">VIP</text>`,
+    300,
+    197,
+  );
+})();
+
 export const PROCEDURAL5: Sticker[] = out;

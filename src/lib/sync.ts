@@ -61,12 +61,27 @@ export async function pullAndMerge(uid: string, local: Book): Promise<Book> {
   return { ...local, pages: [cover, ...days, back].filter((p): p is Page => !!p) };
 }
 
-// Uploads data-URI photos (original, cut-out and background photo) and writes changed pages.
-// Returns a map of data URI -> download URL so the caller can swap them into its own copy.
-export async function pushBook(uid: string, book: Book): Promise<Record<string, string>> {
+export interface PushResult {
+  swapped: Record<string, string>; // data URI -> download URL
+  error?: string; // plain-English reason when something could not be backed up
+}
+
+export function describeSyncError(e: unknown): string {
+  const code = String((e as { code?: string })?.code ?? "");
+  const msg = String((e as { message?: string })?.message ?? e ?? "");
+  if (/storage\//.test(code) || /storage/i.test(msg)) return "Your pages are backed up, but photos can't be uploaded yet. Firebase Storage needs to be switched on (Build → Storage → Get started).";
+  if (code.includes("permission-denied")) return "The cloud refused the backup. Check the Firestore rules in Firebase.";
+  if (code.includes("unavailable") || code.includes("network") || /offline|network|fetch/i.test(msg)) return "No internet right now. Your work is safe on this device and will back up later.";
+  return "Couldn't back up everything yet. It will try again.";
+}
+
+// Writes changed pages to the cloud. A page that fails (for example because photo storage isn't switched on)
+// never blocks the other pages: it is written without the photos it couldn't upload and retried next time.
+export async function pushBook(uid: string, book: Book): Promise<PushResult> {
   const db = fbDb();
   const synced = readSynced(uid);
   const swapped: Record<string, string> = {};
+  let error: string | undefined;
 
   const removed = readDeleted(uid);
   for (const d of removed) {
@@ -75,11 +90,11 @@ export async function pushBook(uid: string, book: Book): Promise<Record<string, 
       for (const pid of d.photos) {
         for (const f of [`${pid}.jpg`, `${pid}-cut.png`, `${pid}-bg.jpg`]) await deleteObject(ref(fbStorage(), `users/${uid}/photos/${f}`)).catch(() => undefined);
       }
-    } catch {
-      /* try again next time */
+      clearDeleted(uid, [d.id]);
+    } catch (e) {
+      error = describeSyncError(e); // try again next time
     }
   }
-  if (removed.length) clearDeleted(uid, removed.map((d) => d.id));
 
   const up = async (data: string, name: string) => {
     if (swapped[data]) return swapped[data];
@@ -91,23 +106,38 @@ export async function pushBook(uid: string, book: Book): Promise<Record<string, 
   };
 
   for (const p of book.pages) {
-    if ((p.updated ?? 0) <= (synced[p.id] ?? -1)) continue;
+    if ((p.updated ?? 0) <= (synced[p.id] ?? 0)) continue;
     const items = [];
+    let complete = true;
     for (const it of p.items) {
       if (it.kind !== "photo") {
         items.push(it);
         continue;
       }
-      let n = it;
-      if (n.src?.startsWith("data:")) n = { ...n, src: await up(n.src, `${it.id}.jpg`) };
-      if (n.cut?.startsWith("data:")) n = { ...n, cut: await up(n.cut, `${it.id}-cut.png`) };
-      if (n.pbg?.k === "photo" && n.pbg.v?.startsWith("data:")) n = { ...n, pbg: { ...n.pbg, v: await up(n.pbg.v, `${it.id}-bg.jpg`) } };
-      items.push(n);
+      try {
+        let n = it;
+        if (n.src?.startsWith("data:")) n = { ...n, src: await up(n.src, `${it.id}.jpg`) };
+        if (n.cut?.startsWith("data:")) n = { ...n, cut: await up(n.cut, `${it.id}-cut.png`) };
+        if (n.pbg?.k === "photo" && n.pbg.v?.startsWith("data:")) n = { ...n, pbg: { ...n.pbg, v: await up(n.pbg.v, `${it.id}-bg.jpg`) } };
+        items.push(n);
+      } catch (e) {
+        // leave this photo out of the cloud copy for now; the rest of the page still backs up
+        complete = false;
+        error = describeSyncError(e);
+      }
     }
-    await setDoc(doc(db, "users", uid, "pages", p.id), clean({ ...p, items }));
-    synced[p.id] = p.updated ?? Date.now();
+    try {
+      await setDoc(doc(db, "users", uid, "pages", p.id), clean({ ...p, items }));
+      if (complete) synced[p.id] = p.updated ?? Date.now();
+    } catch (e) {
+      error = describeSyncError(e);
+    }
   }
-  await setDoc(doc(db, "users", uid), { order: book.pages.map((p) => p.id), updated: Date.now() }, { merge: true });
+  try {
+    await setDoc(doc(db, "users", uid), { order: book.pages.map((p) => p.id), updated: Date.now() }, { merge: true });
+  } catch (e) {
+    error = describeSyncError(e);
+  }
   writeSynced(uid, synced);
-  return swapped;
+  return { swapped, error };
 }

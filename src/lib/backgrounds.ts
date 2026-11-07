@@ -41,6 +41,9 @@ const stripes = (c: string) => Array.from({ length: 12 }, (_, i) => `<rect x="${
 const gingham = (c: string) =>
   Array.from({ length: 10 }, (_, i) => `<rect x="${i * 60 + 0}" y="0" width="30" height="800" fill="${c}" opacity=".28"/>`).join("") +
   Array.from({ length: 14 }, (_, i) => `<rect x="0" y="${i * 60}" width="600" height="30" fill="${c}" opacity=".28"/>`).join("");
+const ginghamStrong = (c: string) =>
+  Array.from({ length: 10 }, (_, i) => `<rect x="${i * 60}" y="0" width="30" height="800" fill="${c}" opacity=".62"/>`).join("") +
+  Array.from({ length: 14 }, (_, i) => `<rect x="0" y="${i * 60}" width="600" height="30" fill="${c}" opacity=".62"/>`).join("");
 const margin = `<line x1="70" y1="0" x2="70" y2="800" stroke="#d98a98" stroke-width="1.6" opacity=".7"/>`;
 
 export const BACKGROUNDS: Bg[] = [
@@ -59,6 +62,7 @@ export const BACKGROUNDS: Bg[] = [
   { id: "grid", label: "Grid", swatch: "#faf6ea", css: paper("#faf6ea", { crumple: 0.15, overlay: gridLines("#c3cfe2") }) },
   { id: "dotgrid", label: "Dot grid", swatch: "#f6efe0", css: paper("#f6efe0", { crumple: 0.2, overlay: dots("#a89c86") }) },
   { id: "stripes", label: "Cloth stripes", swatch: "#efe6d6", css: paper("#f1eadb", { crumple: 0.3, fibre: 1, overlay: stripes("#bfb4d6") }) },
+  { id: "gingham-red", label: "Red gingham", swatch: "#d9503f", css: paper("#fbf6ee", { crumple: 0.3, fibre: 0.9, overlay: ginghamStrong("#d63a3a") }) },
   { id: "gingham", label: "Gingham", swatch: "#e9b9c0", css: paper("#fbf6ee", { crumple: 0.3, fibre: 0.9, overlay: gingham("#d9808f") }) },
   { id: "night", label: "Night", swatch: "#3a3358", dark: true, css: paper("#3a3358", { crumple: 0.5, fibre: 0.3, light: "#cfc6ff" }) },
   { id: "d-charcoal", label: "Charcoal", swatch: "#3d3b42", dark: true, css: paper("#3d3b42", { crumple: 0.5, fibre: 0.35, light: "#e6e6ee" }) },

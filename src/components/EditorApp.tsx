@@ -16,9 +16,9 @@ import { FRAMES } from "@/lib/frames";
 import { scheduleStreakReminders } from "@/lib/notify";
 import { pageBackground } from "@/lib/pagebg";
 import { markDeleted, readStreak, saveBook, uid } from "@/lib/store";
-import { autoCutout, bakeLasso, smallPhoto } from "@/lib/cutout";
+import { autoCutout, bakeLasso, plainBackgroundCutout, smallPhoto } from "@/lib/cutout";
 import { PBG_COLORS, PBG_GRADIENTS, PhotoBg } from "@/lib/photoBg";
-import { pushBook } from "@/lib/sync";
+import { describeSyncError, pushBook } from "@/lib/sync";
 import { TEMPLATES } from "@/lib/templates";
 import { Book, EdgeKind, FontKey, Item, PAGE_H, PAGE_W, Page, PenKind, PhotoFrame, TextStyle } from "@/lib/types";
 import Avatar from "./Avatar";
@@ -86,9 +86,12 @@ export default function EditorApp() {
   const [draft, setDraft] = useState<{ text: string; font: FontKey; color: string; style: TextStyle; accent: string }>({ text: "", font: "hand", color: "#2d2a33", style: "plain", accent: "#e3b97a" });
   const [pen, setPen] = useState<{ kind: PenKind; color: string; width: number }>({ kind: "pen", color: "#1f1d1f", width: 3 });
   const [cutting, setCutting] = useState(false);
+  const [plainTol, setPlainTol] = useState(40);
+  const plainTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showFlip, setShowFlip] = useState(false);
   const [menu, setMenu] = useState(false);
   const [busy, setBusy] = useState("");
+  const [sync, setSync] = useState<{ state: "idle" | "syncing" | "ok" | "error"; msg?: string }>({ state: "idle" });
   const [toast, setToast] = useState("");
   const [area, setArea] = useState({ w: 0, h: 0 });
   const past = useRef<Page[][]>([]);
@@ -150,7 +153,9 @@ export default function EditorApp() {
     const c = s.uid
       ? setTimeout(async () => {
           try {
-            const swapped = await pushBook(s.uid as string, book);
+            setSync((x) => ({ ...x, state: "syncing" }));
+            const { swapped, error } = await pushBook(s.uid as string, book);
+            setSync(error ? { state: "error", msg: error } : { state: "ok" });
             if (Object.keys(swapped).length) {
               // photos now live in the cloud: swap their data URIs for URLs, but only where nothing changed meanwhile
               const sw = (v?: string) => (v && swapped[v] ? swapped[v] : v);
@@ -166,8 +171,8 @@ export default function EditorApp() {
                   : b,
               );
             }
-          } catch {
-            /* offline: it will sync next time */
+          } catch (e) {
+            setSync({ state: "error", msg: describeSyncError(e) });
           }
         }, 2500)
       : null;
@@ -318,6 +323,8 @@ export default function EditorApp() {
         const { src, aspect } = await fileToPhoto(f);
         const w = 230;
         addItem({ kind: "photo", src, frame: "polaroid", w, h: photoHeight(w, aspect, "polaroid") });
+        setTab("edit");
+        setPanelOpen(true);
       }
     } finally {
       setBusy("");
@@ -424,6 +431,26 @@ export default function EditorApp() {
       note("Done! Pick a new background below.");
     } catch (e) {
       note(e instanceof Error ? e.message : "The cutout didn't work. Check your internet connection and try again.");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  // remove a plain background (stickers, objects on a table…); the slider re-runs it with a new sensitivity
+  const runPlainCut = async (tol: number, id?: string, src?: string, w?: number) => {
+    const it = selected;
+    const target = id ?? it?.id;
+    const source = src ?? it?.src;
+    const width = w ?? it?.w;
+    if (!target || !source || !width) return;
+    setBusy("Removing the background…");
+    try {
+      const png = await plainBackgroundCutout(source, tol);
+      const a = await aspectOf(png);
+      snapshot();
+      patchItemById(target, { cut: png, frame: "plain", h: width * a, pbg: undefined, edge: undefined, clip: undefined });
+    } catch (e) {
+      note(e instanceof Error ? e.message : "That didn't work.");
     } finally {
       setBusy("");
     }
@@ -570,9 +597,6 @@ export default function EditorApp() {
   const pageLabel = (p: Page, i: number) => (p.kind === "cover" ? "Cover" : p.kind === "back" ? "End" : String(i));
   const title = page.kind === "cover" ? "Front cover" : page.kind === "back" ? "End page" : page.date === todayKey() ? "Today’s page" : `Page ${idx}`;
 
-  const collapseForEditing = () => {
-    if (narrow) setPanelOpen(false);
-  };
   const mode: CanvasMode = cutting ? "cut" : tab === "draw" ? "draw" : "edit";
   const tabs: [Tab, string, string][] = [
     ["elements", "✦", "Elements"],
@@ -591,7 +615,14 @@ export default function EditorApp() {
         </Link>
         <div className="ed-title">
           <b>{s.name}</b>
-          <small>{title}</small>
+          <small>
+            {title}
+            {s.uid && sync.state !== "idle" && (
+              <button className={`syncdot ${sync.state}`} onClick={() => note(sync.msg ?? (sync.state === "ok" ? "Backed up to your account" : "Backing up…"))} aria-label="Backup status">
+                {sync.state === "ok" ? "☁ ✓" : sync.state === "error" ? "☁ !" : "☁ …"}
+              </button>
+            )}
+          </small>
         </div>
         <button className="btn round" onClick={undo} disabled={!past.current.length} aria-label="Undo" title="Undo (Ctrl+Z)">
           ↶
@@ -850,13 +881,33 @@ export default function EditorApp() {
                     {selected.kind === "photo" && (
                       <>
                         <label className="lbl">Cut out</label>
-                        <button className="btn primary wide" onClick={runAutoCutout} disabled={!selected.src}>
+                        <button className="btn primary wide" onClick={() => runPlainCut(plainTol)} disabled={!selected.src}>
+                          🪄 Remove plain background (stickers, objects)
+                        </button>
+                        <label className="lbl">Sensitivity</label>
+                        <input
+                          type="range"
+                          min={8}
+                          max={90}
+                          step={2}
+                          value={plainTol}
+                          aria-label="How different from the background a colour must be to stay"
+                          onChange={(e) => {
+                            const v = Number(e.target.value);
+                            setPlainTol(v);
+                            if (!selected.cut) return;
+                            const { id, src, w } = selected;
+                            if (plainTimer.current) clearTimeout(plainTimer.current);
+                            plainTimer.current = setTimeout(() => void runPlainCut(v, id, src, w), 350);
+                          }}
+                        />
+                        <button className="btn wide" onClick={runAutoCutout} disabled={!selected.src}>
                           ✨ Remove background (people)
                         </button>
                         <button className="btn wide" onClick={startDrawnCut}>
                           ✂ Cut out by drawing (anything)
                         </button>
-                        <p className="hint">The automatic cutout works best on people and downloads a small helper once (about 25 MB). For pets, objects or food, draw around the part you want to keep.</p>
+                        <p className="hint">The plain-background tool works on stickers, drawings and things photographed on a plain surface: raise the sensitivity if some background is left, lower it if it eats into the object. The ✨ people tool uses an AI helper (about 25 MB, downloaded once). For anything else, draw around the part you want to keep.</p>
                         {selected.cut && (
                           <>
                             <label className="lbl">Background</label>
@@ -1031,13 +1082,14 @@ export default function EditorApp() {
                 penPreview={{ color: pen.color, width: pen.width, pen: pen.kind }}
                 onSelect={(id) => {
                   setSelectedId(id);
-                  if (id) collapseForEditing();
+                  // picking a photo jumps straight to its cut-out / background tools
+                  if (id && page.items.find((i) => i.id === id)?.kind === "photo") {
+                    setTab("edit");
+                    setPanelOpen(true);
+                  }
                 }}
                 onItems={setItems}
-                onBegin={() => {
-                  snapshot();
-                  collapseForEditing();
-                }}
+                onBegin={snapshot}
                 onDelete={deleteItem}
                 onEditText={() => {
                   setTab("text");

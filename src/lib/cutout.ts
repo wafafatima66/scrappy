@@ -56,6 +56,18 @@ export async function autoCutout(src: string, onStatus?: CutStatus): Promise<str
   c.width = img.naturalWidth;
   c.height = img.naturalHeight;
   c.getContext("2d")!.drawImage(small, 0, 0, c.width, c.height);
+
+  // sanity check: how much of the photo was kept?
+  const probe = document.createElement("canvas");
+  probe.width = probe.height = 48;
+  const pctx = probe.getContext("2d", { willReadFrequently: true })!;
+  pctx.drawImage(c, 0, 0, 48, 48);
+  const px = pctx.getImageData(0, 0, 48, 48).data;
+  let kept = 0;
+  for (let i = 3; i < px.length; i += 4) if (px[i] > 128) kept++;
+  const share = kept / (48 * 48);
+  if (share < 0.04) throw new Error("I couldn't find a person in this photo. For stickers and objects use \"Remove plain background\", or cut around it by drawing.");
+  if (share > 0.985) throw new Error("Nothing was removed. If the background is plain, try \"Remove plain background\" instead.");
   return c.toDataURL("image/png");
 }
 
@@ -79,6 +91,91 @@ export async function bakeLasso(src: string, pts: number[]): Promise<string> {
   return c.toDataURL("image/png");
 }
 
+// Plain-background remover: flood-fills inward from the photo's edges, removing everything that is
+// close to the background colour. Great for stickers, products, drawings and anything shot on a plain surface.
+// tolerance: 8 (strict) .. 90 (very forgiving)
+export async function plainBackgroundCutout(src: string, tolerance = 40): Promise<string> {
+  const img = await toImage(src);
+  const w = img.naturalWidth;
+  const h = img.naturalHeight;
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext("2d", { willReadFrequently: true })!;
+  ctx.drawImage(img, 0, 0);
+  const im = ctx.getImageData(0, 0, w, h);
+  const d = im.data;
+
+  // typical border colour (median of the edge pixels)
+  const edge: number[][] = [];
+  const step = Math.max(1, Math.floor(Math.max(w, h) / 200));
+  for (let x = 0; x < w; x += step) {
+    edge.push([x, 0], [x, h - 1]);
+  }
+  for (let y = 0; y < h; y += step) {
+    edge.push([0, y], [w - 1, y]);
+  }
+  const med = (ch: number) => {
+    const v = edge.map(([x, y]) => d[(y * w + x) * 4 + ch]).sort((a, b) => a - b);
+    return v[Math.floor(v.length / 2)];
+  };
+  const bg = [med(0), med(1), med(2)];
+  const dist = (i: number, ref: number[]) => Math.hypot((d[i] - ref[0]) * 0.9, (d[i + 1] - ref[1]) * 1.1, (d[i + 2] - ref[2]) * 0.8);
+
+  const removed = new Uint8Array(w * h);
+  const queue: number[] = [];
+  const push = (p: number) => {
+    if (!removed[p] && dist(p * 4, bg) <= tolerance) {
+      removed[p] = 1;
+      queue.push(p);
+    }
+  };
+  for (let x = 0; x < w; x++) {
+    push(x);
+    push((h - 1) * w + x);
+  }
+  for (let y = 0; y < h; y++) {
+    push(y * w);
+    push(y * w + w - 1);
+  }
+  const local = tolerance * 0.5; // allows gentle gradients in the background
+  const far = tolerance * 2.2;
+  for (let qi = 0; qi < queue.length; qi++) {
+    const p = queue[qi];
+    const x = p % w;
+    const y = (p / w) | 0;
+    const here = [d[p * 4], d[p * 4 + 1], d[p * 4 + 2]];
+    for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+      const n = ny * w + nx;
+      if (removed[n]) continue;
+      if (dist(n * 4, here) <= local && dist(n * 4, bg) <= far) {
+        removed[n] = 1;
+        queue.push(n);
+      }
+    }
+  }
+
+  // soften the edge by one pixel so the cut doesn't look jagged
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const p = y * w + x;
+      if (removed[p]) {
+        d[p * 4 + 3] = 0;
+        continue;
+      }
+      let near = 0;
+      if (x > 0 && removed[p - 1]) near++;
+      if (x < w - 1 && removed[p + 1]) near++;
+      if (y > 0 && removed[p - w]) near++;
+      if (y < h - 1 && removed[p + w]) near++;
+      if (near) d[p * 4 + 3] = Math.round(255 * (1 - 0.22 * near));
+    }
+  }
+  ctx.putImageData(im, 0, 0);
+  return c.toDataURL("image/png");
+}
+
 // a downscaled copy for the "another photo" background
 export async function smallPhoto(file: File): Promise<string> {
   const bmp = await createImageBitmap(file);
@@ -92,5 +189,5 @@ export async function smallPhoto(file: File): Promise<string> {
 
 // test hook: lets a developer run the cutout engine from the browser console on a device
 if (typeof window !== "undefined" && typeof localStorage !== "undefined" && localStorage.getItem("patchlet.debug")) {
-  (window as unknown as { __plCutout: unknown }).__plCutout = { autoCutout, bakeLasso };
+  (window as unknown as { __plCutout: unknown }).__plCutout = { autoCutout, bakeLasso, plainBackgroundCutout };
 }

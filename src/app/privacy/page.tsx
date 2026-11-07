@@ -63,7 +63,7 @@ export default function Privacy() {
 
       <h2>Deleting your data</h2>
       <p>
-        You can delete your account and all saved pages and photos at any time in the app: <b>Profile → Delete my account</b>. You can also email us at {CONTACT_EMAIL} and we will delete it for you.
+        You can delete your account and all saved pages and photos at any time in the app: <b>Profile → Delete my account</b>. Step-by-step instructions are on our <Link href="/delete-account/">delete account page</Link>. You can also email us at {CONTACT_EMAIL} and we will delete it for you.
       </p>
 
       <h2>Contact</h2>
