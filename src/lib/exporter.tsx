@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 import { toPng } from "html-to-image";
 import PageStatic from "@/components/PageStatic";
 import { beforeExport } from "./ads";
-import { isNative, saveFile } from "./native";
+import { SaveResult, isNative, saveFile } from "./native";
 import { PAGE_H, PAGE_W, Book, Page } from "./types";
 
 export async function pageToPng(page: Page, ratio = 2): Promise<string> {
@@ -30,9 +30,15 @@ export async function pageToPng(page: Page, ratio = 2): Promise<string> {
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "patchlet";
 
-export async function exportPagePng(book: Book, page: Page, index: number) {
+export async function exportPagePng(book: Book, page: Page, index: number): Promise<SaveResult> {
   await beforeExport("image");
-  await saveFile(await pageToPng(page, 2), `${slug(book.title)}-page-${index + 1}.png`, "Save page as image");
+  return saveFile(await pageToPng(page, 2), `${slug(book.title)}-page-${index + 1}.png`, "Save page as image", "Pictures");
+}
+
+// opens the phone's share sheet (WhatsApp, Instagram, Drive…)
+export async function sharePageImage(book: Book, page: Page, index: number): Promise<SaveResult> {
+  await beforeExport("image");
+  return saveFile(await pageToPng(page, 2), `${slug(book.title)}-page-${index + 1}.png`, "Share this page");
 }
 
 async function buildPdf(pages: Page[], onProgress?: (n: number, total: number) => void) {
@@ -47,11 +53,11 @@ async function buildPdf(pages: Page[], onProgress?: (n: number, total: number) =
   return pdf;
 }
 
-export async function exportPdf(book: Book, pages: Page[], name: string, onProgress?: (n: number, total: number) => void) {
+export async function exportPdf(book: Book, pages: Page[], name: string, onProgress?: (n: number, total: number) => void): Promise<SaveResult> {
   await beforeExport("pdf");
   const pdf = await buildPdf(pages, onProgress);
-  await saveFile(pdf.output("blob"), `${slug(name)}.pdf`, "Save as PDF");
   void book;
+  return saveFile(pdf.output("blob"), `${slug(name)}.pdf`, "Save as PDF", "Documents");
 }
 
 // Print: browsers open the print dialog; in the Android app the PDF opens in the share sheet,

@@ -1,5 +1,5 @@
 // More realistic craft elements: sticky notes, envelopes, tickets, country stamps and date stamps.
-import { PAPERS, Sticker, grain, rough, svgWrap, torn, uri } from "./procedural";
+import { PAPERS, Sticker, grain, inkFor, rough, svgWrap, torn, uri } from "./procedural";
 
 export type Gen = Sticker & { gen?: () => string };
 
@@ -31,7 +31,7 @@ NOTE_COLORS.forEach(([n, c, d], i) => {
 
 // ---------- ENVELOPES ----------
 
-PAPERS.slice(0, 8).forEach(([n, c], i) => {
+PAPERS.forEach(([n, c], i) => {
   const gid = `ev${i}`;
   add(
     `env-closed-${n}`,
@@ -111,9 +111,14 @@ const TICKET_COLS: [string, string][] = [
   ["sky", "#b9d3e6"],
   ["lilac", "#d3c6ec"],
   ["cream", "#efe5cf"],
+  ["charcoal", "#4a4850"],
+  ["navy", "#3a4a6e"],
+  ["burgundy", "#7a3a48"],
+  ["forest", "#3f5e4a"],
 ];
 TICKET_COLS.forEach(([n, c], i) => {
   const g = `tk2${i}`;
+  const tc = inkFor(c);
   add(
     `tix-cinema-${n}`,
     "tickets",
@@ -122,11 +127,11 @@ TICKET_COLS.forEach(([n, c], i) => {
     110,
     `<defs>${grain(g, i + 1, 1)}</defs>
      <g filter="url(#${g})"><path d="M10 10H250V42a11 11 0 0 0 0 26V100H10V68a11 11 0 0 0 0-26Z" fill="${c}"/></g>
-     <path d="M184 12V98" stroke="#3b3128" stroke-opacity=".5" stroke-dasharray="4 3" stroke-width="1.5"/>
-     <text x="96" y="40" text-anchor="middle" font-family="'Courier New', monospace" font-size="20" font-weight="bold" fill="#3b3128">CINEMA</text>
-     <text x="96" y="60" text-anchor="middle" font-family="'Courier New', monospace" font-size="11" fill="#3b3128">SCREEN 4  ·  ROW F</text>
-     <text x="96" y="80" text-anchor="middle" font-family="'Courier New', monospace" font-size="11" fill="#3b3128">20:30  ·  SEAT ${12 + i}</text>
-     <text x="218" y="62" text-anchor="middle" font-family="'Courier New', monospace" font-size="22" font-weight="bold" fill="#3b3128" transform="rotate(-90 218 56)">№ 0${i}47</text>`,
+     <path d="M184 12V98" stroke="${tc}" stroke-opacity=".5" stroke-dasharray="4 3" stroke-width="1.5"/>
+     <text x="96" y="40" text-anchor="middle" font-family="'Courier New', monospace" font-size="20" font-weight="bold" fill="${tc}">CINEMA</text>
+     <text x="96" y="60" text-anchor="middle" font-family="'Courier New', monospace" font-size="11" fill="${tc}">SCREEN 4  ·  ROW F</text>
+     <text x="96" y="80" text-anchor="middle" font-family="'Courier New', monospace" font-size="11" fill="${tc}">20:30  ·  SEAT ${12 + i}</text>
+     <text x="218" y="62" text-anchor="middle" font-family="'Courier New', monospace" font-size="22" font-weight="bold" fill="${tc}" transform="rotate(-90 218 56)">№ 0${i}47</text>`,
     200,
     85,
   );
@@ -139,12 +144,12 @@ TICKET_COLS.forEach(([n, c], i) => {
     `<defs>${grain(`${g}t`, i + 3, 1)}</defs>
      <g filter="url(#${g}t)"><rect x="8" y="8" width="284" height="88" rx="4" fill="${c}"/></g>
      <rect x="8" y="8" width="52" height="88" fill="#000" opacity=".1"/>
-     <text x="34" y="60" text-anchor="middle" font-family="'Courier New', monospace" font-size="14" font-weight="bold" fill="#3b3128" transform="rotate(-90 34 54)">EXPRESS</text>
-     <text x="76" y="38" font-family="'Courier New', monospace" font-size="13" fill="#3b3128">FROM  LONDON</text>
-     <text x="76" y="58" font-family="'Courier New', monospace" font-size="13" fill="#3b3128">TO    PARIS</text>
-     <text x="76" y="80" font-family="'Courier New', monospace" font-size="11" fill="#3b3128">COACH 7  ·  SEAT 24A</text>
-     <rect x="210" y="22" width="68" height="52" fill="none" stroke="#3b3128" stroke-opacity=".5"/>
-     ${Array.from({ length: 16 }, (_, k) => `<rect x="${214 + k * 4}" y="28" width="${k % 3 === 0 ? 3 : 1.5}" height="40" fill="#3b3128"/>`).join("")}`,
+     <text x="34" y="60" text-anchor="middle" font-family="'Courier New', monospace" font-size="14" font-weight="bold" fill="${tc}" transform="rotate(-90 34 54)">EXPRESS</text>
+     <text x="76" y="38" font-family="'Courier New', monospace" font-size="13" fill="${tc}">FROM  LONDON</text>
+     <text x="76" y="58" font-family="'Courier New', monospace" font-size="13" fill="${tc}">TO    PARIS</text>
+     <text x="76" y="80" font-family="'Courier New', monospace" font-size="11" fill="${tc}">COACH 7  ·  SEAT 24A</text>
+     <rect x="210" y="22" width="68" height="52" fill="none" stroke="${tc}" stroke-opacity=".5"/>
+     ${Array.from({ length: 16 }, (_, k) => `<rect x="${214 + k * 4}" y="28" width="${k % 3 === 0 ? 3 : 1.5}" height="40" fill="${tc}"/>`).join("")}`,
     230,
     80,
   );
@@ -157,7 +162,7 @@ TICKET_COLS.forEach(([n, c], i) => {
     `<defs>${grain(`${g}b`, i + 5, 1)}</defs>
      <g filter="url(#${g}b)"><path d="M8 8H312V122H8Z" fill="#fbf8f0"/></g>
      <rect x="8" y="8" width="304" height="26" fill="${c}"/>
-     <text x="20" y="27" font-family="'Courier New', monospace" font-size="14" font-weight="bold" fill="#3b3128">BOARDING PASS</text>
+     <text x="20" y="27" font-family="'Courier New', monospace" font-size="14" font-weight="bold" fill="${tc}">BOARDING PASS</text>
      <text x="20" y="62" font-family="'Courier New', monospace" font-size="22" font-weight="bold" fill="#3b3128">DAC → LHR</text>
      <text x="20" y="84" font-family="'Courier New', monospace" font-size="11" fill="#555">FLIGHT PT 0${i + 4}2   GATE B${i + 3}   SEAT 1${i + 2}A</text>
      <path d="M232 8V122" stroke="#3b3128" stroke-opacity=".45" stroke-dasharray="4 3"/>
@@ -173,12 +178,12 @@ TICKET_COLS.forEach(([n, c], i) => {
     200,
     `<defs>${grain(`${g}s`, i + 7, 1)}</defs>
      <g filter="url(#${g}s)"><path d="M10 10H130V74a11 11 0 0 0 0 22V190H10V96a11 11 0 0 0 0-22Z" fill="${c}"/></g>
-     <text x="70" y="52" text-anchor="middle" font-family="Georgia, serif" font-size="18" font-weight="bold" fill="#3b3128">ADMIT</text>
-     <text x="70" y="70" text-anchor="middle" font-family="Georgia, serif" font-size="18" font-weight="bold" fill="#3b3128">ONE</text>
-     <path d="M16 85H124" stroke="#3b3128" stroke-opacity=".5" stroke-dasharray="4 3"/>
-     <text x="70" y="130" text-anchor="middle" font-family="'Courier New', monospace" font-size="12" fill="#3b3128">LIVE MUSIC</text>
-     <text x="70" y="150" text-anchor="middle" font-family="'Courier New', monospace" font-size="12" fill="#3b3128">No. 00${i + 21}</text>
-     <circle cx="70" cy="172" r="8" fill="none" stroke="#3b3128" stroke-opacity=".5"/>`,
+     <text x="70" y="52" text-anchor="middle" font-family="Georgia, serif" font-size="18" font-weight="bold" fill="${tc}">ADMIT</text>
+     <text x="70" y="70" text-anchor="middle" font-family="Georgia, serif" font-size="18" font-weight="bold" fill="${tc}">ONE</text>
+     <path d="M16 85H124" stroke="${tc}" stroke-opacity=".5" stroke-dasharray="4 3"/>
+     <text x="70" y="130" text-anchor="middle" font-family="'Courier New', monospace" font-size="12" fill="${tc}">LIVE MUSIC</text>
+     <text x="70" y="150" text-anchor="middle" font-family="'Courier New', monospace" font-size="12" fill="${tc}">No. 00${i + 21}</text>
+     <circle cx="70" cy="172" r="8" fill="none" stroke="${tc}" stroke-opacity=".5"/>`,
     104,
     148,
   );

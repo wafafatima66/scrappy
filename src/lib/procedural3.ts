@@ -1,6 +1,6 @@
 // Realistic craft elements, part 2: flowers, film strips, lace, newspaper and handwritten paper,
 // geometric shapes, borders and dividers, clips, extra doodles and vector stickers.
-import { INKS, PAPERS, Sticker, grain, rough, svgWrap, torn, uri } from "./procedural";
+import { INKS, PAPERS, Sticker, grain, isDark, rough, svgWrap, torn, uri } from "./procedural";
 
 const out: Sticker[] = [];
 const add = (id: string, cat: string, label: string, w: number, h: number, inner: string, dw?: number, dh?: number) =>
@@ -181,6 +181,14 @@ const FILMS: [string, string, string][] = [
   ["black", "#1b1919", "#efe7d6"],
   ["sepia", "#4a3a2e", "#e8dcc0"],
   ["cream", "#e9dfc8", "#8a7a5c"],
+  ["navy", "#1f2a44", "#e6e8f0"],
+  ["burgundy", "#4a1f2a", "#f0dfe0"],
+  ["forest", "#1f3a2c", "#e3eddf"],
+  ["white", "#f2eee4", "#6a6258"],
+  ["rose", "#d9a1a8", "#fbeeee"],
+  ["lilac", "#cdbfe6", "#f7f3fc"],
+  ["sky", "#a9c8e0", "#eef6fc"],
+  ["butter", "#e8d49a", "#6a5a2a"],
 ];
 FILMS.forEach(([n, base, hole], i) => {
   const strip = (frames: number) => {
@@ -208,7 +216,7 @@ FILMS.forEach(([n, base, hole], i) => {
 ["#f4f1ea", "#1f1d1d", "#f3dcc9"].forEach((c, i) => {
   add(
     `slide-${i}`,
-    "film",
+    "frames",
     "photo slide frame",
     150,
     150,
@@ -218,7 +226,7 @@ FILMS.forEach(([n, base, hole], i) => {
   );
   add(
     `instant-${i}`,
-    "film",
+    "frames",
     "instant photo frame",
     150,
     180,
@@ -236,6 +244,10 @@ const LACES: [string, string][] = [
   ["blush", "#f5d6da"],
   ["lilac", "#dcd0ef"],
   ["sage", "#d4e1cd"],
+  ["black", "#26242a"],
+  ["navy", "#2f3b57"],
+  ["burgundy", "#6b2f3a"],
+  ["forest", "#36503f"],
 ];
 LACES.forEach(([n, c], i) => {
   const m = `lm${i}`;
@@ -283,10 +295,20 @@ const NEWS: [string, string][] = [
   ["white", "#e8e3d6"],
   ["aged", "#d7c79e"],
   ["grey", "#cfcdc6"],
+  ["blush", "#ecd2cc"],
+  ["sage", "#d3dccb"],
+  ["sky", "#cfdbe4"],
+  ["night", "#2f3040"],
+  ["navy", "#2c3a56"],
+  ["wine", "#4a2230"],
 ];
 const NEWS_HEAD = ["THE DAILY POST", "EVENING STAR", "THE GAZETTE", "MORNING NEWS"];
 NEWS.forEach(([n, c], i) => {
   const gid = `nw${i}`;
+  const tx = isDark(c) ? "#f0ebdd" : "${tx}";
+  const tx2 = isDark(c) ? "#c9c3b4" : "${tx2}";
+  const pic = isDark(c) ? "#6b6a78" : "#8d887a";
+  const pic2 = isDark(c) ? "#8a8998" : "#6c685c";
   const cols = (w: number, y0: number, h: number, seed: number) => {
     const r = rnd(seed);
     let s = "";
@@ -294,7 +316,7 @@ NEWS.forEach(([n, c], i) => {
     for (let cI = 0; cI < 3; cI++)
       for (let y = y0; y < y0 + h; y += 7) {
         const len = colW - 4 - (r() < 0.12 ? colW * 0.4 : 0);
-        s += `<rect x="${14 + cI * colW}" y="${y}" width="${len}" height="2.4" fill="#4a463e" opacity=".55"/>`;
+        s += `<rect x="${14 + cI * colW}" y="${y}" width="${len}" height="2.4" fill="${tx2}" opacity=".55"/>`;
       }
     return s;
   };
@@ -306,13 +328,13 @@ NEWS.forEach(([n, c], i) => {
     300,
     `<defs>${torn(gid, i + 70, 14, 0.05)}</defs>
      <g filter="url(#${gid})"><rect x="20" y="20" width="220" height="260" fill="${c}"/></g>
-     <text x="130" y="56" text-anchor="middle" font-family="'Times New Roman', Georgia, serif" font-weight="bold" font-size="23" fill="#2a2722">${NEWS_HEAD[i % 4]}</text>
-     <line x1="32" y1="63" x2="228" y2="63" stroke="#2a2722" stroke-width="2"/><line x1="32" y1="67" x2="228" y2="67" stroke="#2a2722" stroke-width=".8"/>
-     <text x="32" y="82" font-family="'Times New Roman', serif" font-size="8" fill="#4a463e">VOL. XII · No. 148 · PRICE TWO PENCE</text>
-     <rect x="34" y="90" width="90" height="62" fill="#8d887a"/><path d="M34 152L64 118L84 138L104 112L124 152Z" fill="#6c685c"/>
+     <text x="130" y="56" text-anchor="middle" font-family="'Times New Roman', Georgia, serif" font-weight="bold" font-size="23" fill="${tx}">${NEWS_HEAD[i % 4]}</text>
+     <line x1="32" y1="63" x2="228" y2="63" stroke="${tx}" stroke-width="2"/><line x1="32" y1="67" x2="228" y2="67" stroke="${tx}" stroke-width=".8"/>
+     <text x="32" y="82" font-family="'Times New Roman', serif" font-size="8" fill="${tx2}">VOL. XII · No. 148 · PRICE TWO PENCE</text>
+     <rect x="34" y="90" width="90" height="62" fill="${pic}"/><path d="M34 152L64 118L84 138L104 112L124 152Z" fill="${pic2}"/>
      ${cols(220, 90, 0, 1)}
      <g transform="translate(20,0)">${cols(220, 160, 100, i + 3)}</g>
-     <g transform="translate(110,0)"><rect x="24" y="92" width="86" height="6" fill="#2a2722" opacity=".8"/>${Array.from({ length: 8 }, (_, k) => `<rect x="24" y="${104 + k * 7}" width="${k % 3 === 2 ? 60 : 86}" height="2.4" fill="#4a463e" opacity=".55"/>`).join("")}</g>`,
+     <g transform="translate(110,0)"><rect x="24" y="92" width="86" height="6" fill="${tx}" opacity=".8"/>${Array.from({ length: 8 }, (_, k) => `<rect x="24" y="${104 + k * 7}" width="${k % 3 === 2 ? 60 : 86}" height="2.4" fill="${tx2}" opacity=".55"/>`).join("")}</g>`,
     210,
     242,
   );
@@ -324,8 +346,8 @@ NEWS.forEach(([n, c], i) => {
     110,
     `<defs>${torn(`${gid}s`, i + 77, 10, 0.07)}</defs>
      <g filter="url(#${gid}s)"><rect x="14" y="14" width="272" height="82" fill="${c}"/></g>
-     <text x="150" y="44" text-anchor="middle" font-family="'Times New Roman', Georgia, serif" font-weight="bold" font-size="20" fill="#2a2722">LOCAL GIRL MAKES GOOD</text>
-     ${Array.from({ length: 4 }, (_, k) => `<rect x="26" y="${54 + k * 9}" width="${k === 3 ? 140 : 248}" height="2.4" fill="#4a463e" opacity=".55"/>`).join("")}`,
+     <text x="150" y="44" text-anchor="middle" font-family="'Times New Roman', Georgia, serif" font-weight="bold" font-size="20" fill="${tx}">LOCAL GIRL MAKES GOOD</text>
+     ${Array.from({ length: 4 }, (_, k) => `<rect x="26" y="${54 + k * 9}" width="${k === 3 ? 140 : 248}" height="2.4" fill="${tx2}" opacity=".55"/>`).join("")}`,
     250,
     92,
   );
@@ -336,6 +358,10 @@ const HAND: [string, string][] = [
   ["black", "#26242b"],
   ["sepia", "#6b4a2e"],
   ["violet", "#5a3d8a"],
+  ["red", "#a8323e"],
+  ["green", "#2f6a4a"],
+  ["cream", "#f1ead8"],
+  ["gold", "#d9bd7a"],
 ];
 const scribble = (x0: number, x1: number, y: number, seed: number, ink: string) => {
   const r = rnd(seed);
@@ -361,9 +387,19 @@ const PAPER_STYLES: [string, string, boolean][] = [
   ["kraft", "#cfae82", false],
   ["lilac", "#e6defa", false],
   ["blush", "#f8e3e6", false],
+  ["sage", "#dfe9d8", false],
+  ["sky", "#dfeaf4", false],
+  ["butter", "#f6edc6", false],
+  ["cream", "#f3ead6", false],
+  ["charcoal", "#3d3b42", false],
+  ["navy", "#2f3b57", false],
+  ["burgundy", "#6b2f3a", false],
+  ["forest", "#36503f", false],
 ];
 PAPER_STYLES.forEach(([pn, pc, lined], pi) =>
   HAND.forEach(([hn, ink], hi) => {
+    // light ink only on dark paper, dark ink only on light paper
+    if (isDark(pc) !== (hn === "cream" || hn === "gold")) return;
     const gid = `hw${pi}${hi}`;
     const w = 240;
     const h = 300;
@@ -423,7 +459,14 @@ PAPERS.slice(0, 10).forEach(([cn, c], ci) =>
 
 // ---------- BORDERS & DIVIDERS ----------
 
-INKS.slice(0, 5).forEach(([n, ink], i) => {
+([
+  ...INKS,
+  ["gold", "#c9a24a"],
+  ["navy", "#3b4c78"],
+  ["burgundy", "#8a3d4c"],
+  ["teal", "#2f6f6f"],
+  ["white", "#ffffff"],
+] as [string, string][]).forEach(([n, ink], i) => {
   const d = (id: string, label: string, w: number, h: number, body: string, dw = w, dh = h) => add(`div-${id}-${n}`, "borders", `${label} (${n})`, w, h, `<defs>${rough(`dv${id}${i}`, 1.6)}</defs><g filter="url(#dv${id}${i})" fill="none" stroke="${ink}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${body}</g>`, dw, dh);
   d("dotted", "dotted line", 420, 20, `<line x1="10" y1="10" x2="410" y2="10" stroke-dasharray="0.1 10"/>`, 380, 18);
   d("dashed", "dashed line", 420, 20, `<line x1="10" y1="10" x2="410" y2="10" stroke-dasharray="14 9"/>`, 380, 18);
@@ -438,7 +481,7 @@ INKS.slice(0, 5).forEach(([n, ink], i) => {
   d("ticks", "ruler line", 420, 30, `<line x1="10" y1="22" x2="410" y2="22" stroke-width="2"/>${Array.from({ length: 41 }, (_, k) => `<line x1="${10 + k * 10}" y1="22" x2="${10 + k * 10}" y2="${k % 5 === 0 ? 8 : 15}" stroke-width="1.6"/>`).join("")}`, 380, 27);
   d("bracket", "scribble bracket", 420, 40, `<path d="M10 30C10 8 30 8 60 8H360C390 8 410 8 410 30"/>`, 380, 36);
 });
-PAPERS.slice(0, 8).forEach(([n, c], i) => {
+PAPERS.forEach(([n, c], i) => {
   const g = `bt${i}`;
   add(
     `border-torn-top-${n}`,
@@ -464,7 +507,7 @@ PAPERS.slice(0, 8).forEach(([n, c], i) => {
 ["#2d2a33", "#f4efe2", "#b4525f", "#4a6a8a"].forEach((c, i) =>
   add(
     `photo-corners-${i}`,
-    "borders",
+    "frames",
     "photo corners",
     200,
     200,
@@ -550,7 +593,7 @@ const DOODLES: [string, string, number, number][] = [
   ["eye", `<path d="M6 40C24 8 76 8 94 40C76 72 24 72 6 40Z"/><circle cx="50" cy="40" r="12"/><circle cx="50" cy="40" r="4"/>`, 100, 80],
 ];
 DOODLES.forEach(([name, body, w, h]) =>
-  INKS.slice(0, 4).forEach(([cn, c], ci) =>
+  INKS.forEach(([cn, c], ci) =>
     add(
       `doodle2-${name}-${cn}`,
       "doodles",

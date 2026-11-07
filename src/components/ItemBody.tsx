@@ -1,8 +1,10 @@
 "use client";
 import React from "react";
-import { BY_ID } from "@/lib/catalog";
+import { bgCss } from "@/lib/backgrounds";
+import { findEntry } from "@/lib/catalog";
 import { FONT_CSS } from "@/lib/fonts";
-import { Item } from "@/lib/types";
+import { PBG_GRADIENTS } from "@/lib/photoBg";
+import { EdgeKind, Item } from "@/lib/types";
 
 function rng(seed: number) {
   let s = (seed * 9301 + 49297) % 233280;
@@ -12,7 +14,7 @@ function rng(seed: number) {
   };
 }
 
-// jagged rectangle clip-path, deterministic per seed
+// jagged rectangle clip-path in %, deterministic per seed (used by torn photo frames)
 export function jagged(seed: number, inset = 0, amp = 1.6, steps = 26) {
   const r = rng(seed + 11);
   const pts: string[] = [];
@@ -26,24 +28,147 @@ export function jagged(seed: number, inset = 0, amp = 1.6, steps = 26) {
   return `polygon(${pts.join(",")})`;
 }
 
+// How far the cut edge dips inward at distance s along a side.
+function dip(kind: EdgeKind, s: number, noise: number[], step: number): number {
+  switch (kind) {
+    case "torn": {
+      const f = s / 11;
+      const i = Math.floor(f);
+      const t = f - i;
+      const n = noise[i % noise.length] * (1 - t) + noise[(i + 1) % noise.length] * t;
+      return 2 + n * 9;
+    }
+    case "deckle":
+      return 1 + noise[Math.floor(s / step) % noise.length] * 3;
+    case "wavy":
+      return 4 + 4 * Math.sin((s / 30) * Math.PI * 2);
+    case "zigzag": {
+      const u = (s % 16) / 16;
+      return 9 * (u < 0.5 ? u * 2 : 2 - u * 2);
+    }
+    case "scallop": {
+      const r = 9;
+      const u = (s % (2 * r)) - r;
+      return r - Math.sqrt(Math.max(0, r * r - u * u));
+    }
+    case "perf": {
+      const sp = 16;
+      const rn = 4.5;
+      const u = (s % sp) - sp / 2;
+      return Math.abs(u) < rn ? Math.sqrt(rn * rn - u * u) : 0;
+    }
+  }
+}
+
+// px polygon following the item box with a decorative cut edge
+export function edgePolygon(kind: EdgeKind, seed: number, w: number, h: number): string {
+  const r = rng(seed + 5);
+  const noise = Array.from({ length: 400 }, () => r());
+  const step = kind === "torn" ? 5 : kind === "deckle" ? 4 : kind === "perf" || kind === "scallop" ? 2 : 3;
+  const pts: string[] = [];
+  const side = (len: number, place: (s: number, d: number) => [number, number]) => {
+    for (let s = 0; s < len; s += step) {
+      const [x, y] = place(s, dip(kind, s, noise, step));
+      pts.push(`${x.toFixed(1)}px ${y.toFixed(1)}px`);
+    }
+  };
+  side(w, (s, d) => [s, d]); // top, left → right
+  side(h, (s, d) => [w - d, s]); // right, top → bottom
+  side(w, (s, d) => [w - s, h - d]); // bottom, right → left
+  side(h, (s, d) => [d, h - s]); // left, bottom → top
+  return `polygon(${pts.join(",")})`;
+}
+
 const SHADOW = "drop-shadow(1px 2px 2px rgba(60,40,20,.32)) drop-shadow(0 6px 8px rgba(60,40,20,.12))";
 
+function Draw({ item }: { item: Item }) {
+  const sw = item.sw ?? 4;
+  const pen = item.pen ?? "pen";
+  const dash = pen === "dots" ? `0.1 ${sw * 2.6}` : pen === "dash" ? `${sw * 3.4} ${sw * 2.6}` : undefined;
+  return (
+    <svg width="100%" height="100%" viewBox={`0 0 ${item.w} ${item.h}`} style={{ display: "block", overflow: "visible" }}>
+      <path
+        d={item.path}
+        fill="none"
+        stroke={item.color ?? "#2d2a33"}
+        strokeWidth={pen === "marker" ? sw * 3.2 : sw}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeDasharray={dash}
+        opacity={pen === "marker" ? 0.45 : 0.95}
+        style={pen === "marker" ? { mixBlendMode: "multiply" } : undefined}
+      />
+    </svg>
+  );
+}
+
 export default function ItemBody({ item }: { item: Item }) {
+  const clipPath = item.clip && item.clip.length >= 6
+    ? `polygon(${Array.from({ length: item.clip.length / 2 }, (_, i) => `${(item.clip![i * 2] * 100).toFixed(2)}% ${(item.clip![i * 2 + 1] * 100).toFixed(2)}%`).join(",")})`
+    : item.edge && item.kind !== "text" && item.kind !== "draw"
+      ? edgePolygon(item.edge, item.seed ?? 7, item.w, item.h)
+      : undefined;
+
+  const body = <Inner item={item} cut={!!clipPath} />;
+  if (!clipPath) return body;
+  return (
+    <div style={{ width: "100%", height: "100%", filter: SHADOW }}>
+      <div style={{ width: "100%", height: "100%", clipPath }}>{body}</div>
+    </div>
+  );
+}
+
+
+// A photo with its background removed, optionally sitting on a colour, paper, gradient, blur or another photo.
+function CutPhoto({ item }: { item: Item }) {
+  const bg = item.pbg;
+  const bgStyle: React.CSSProperties =
+    bg?.k === "color" ? { background: bg.v } : bg?.k === "paper" ? { background: bgCss(bg.v ?? "cream") } : bg?.k === "gradient" ? { background: PBG_GRADIENTS.find((g) => g[0] === bg.v)?.[1] } : {};
+  const outline = "drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff) drop-shadow(1px 3px 3px rgba(60,40,20,.35))";
+  return (
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      {bg && (
+        <div style={{ position: "absolute", inset: 0, overflow: "hidden", borderRadius: 4, boxShadow: "1px 3px 6px rgba(60,40,20,.3)", ...bgStyle }}>
+          {bg.k === "blur" && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={item.src} alt="" draggable={false} style={{ width: "100%", height: "100%", objectFit: "cover", filter: "blur(14px) saturate(1.15)", transform: "scale(1.15)" }} />
+          )}
+          {bg.k === "photo" && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={bg.v} alt="" draggable={false} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          )}
+        </div>
+      )}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={item.cut}
+        alt=""
+        draggable={false}
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none", filter: bg ? "drop-shadow(1px 2px 3px rgba(40,30,20,.35))" : item.outline ? outline : "drop-shadow(1px 3px 4px rgba(60,40,20,.3))" }}
+      />
+    </div>
+  );
+}
+
+function Inner({ item, cut }: { item: Item; cut: boolean }) {
+  if (item.kind === "draw") return <Draw item={item} />;
+
   if (item.kind === "img") {
-    const src = item.ref ? BY_ID[item.ref]?.src : item.src;
+    const src = item.src ?? findEntry(item.ref)?.src;
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
         alt=""
         draggable={false}
-        style={{ width: "100%", height: "100%", display: "block", filter: SHADOW, transform: item.flip ? "scaleX(-1)" : undefined, pointerEvents: "none" }}
+        style={{ width: "100%", height: "100%", display: "block", filter: cut ? undefined : SHADOW, transform: item.flip || item.flipV ? `scale(${item.flip ? -1 : 1}, ${item.flipV ? -1 : 1})` : undefined, pointerEvents: "none" }}
       />
     );
   }
 
   if (item.kind === "text") {
     const size = item.size ?? 34;
+    const accent = item.accent ?? "#e8c58a";
     const base: React.CSSProperties = {
       fontFamily: FONT_CSS[item.font ?? "hand"],
       fontSize: size,
@@ -87,6 +212,26 @@ export default function ItemBody({ item }: { item: Item }) {
         </div>
       );
     }
+    if (item.style === "shadow") {
+      const o = Math.max(2, size * 0.07);
+      return <div style={{ ...base, textShadow: `${o}px ${o}px 0 ${accent}, ${o * 1.5}px ${o * 1.5}px 0 ${accent}88` }}>{item.text}</div>;
+    }
+    if (item.style === "highlight") {
+      return (
+        <div style={base}>
+          <span
+            style={{
+              background: `linear-gradient(176deg, transparent 18%, ${accent} 18%, ${accent} 88%, transparent 88%)`,
+              padding: `0 ${size * 0.25}px`,
+              boxDecorationBreak: "clone",
+              WebkitBoxDecorationBreak: "clone",
+            }}
+          >
+            {item.text}
+          </span>
+        </div>
+      );
+    }
     return (
       <div style={{ ...base, textShadow: item.color === "#ffffff" || item.color === "#f6efe0" ? "0 1px 2px rgba(0,0,0,.35)" : undefined }}>
         {item.text}
@@ -95,6 +240,7 @@ export default function ItemBody({ item }: { item: Item }) {
   }
 
   // photo
+  if (item.cut) return <CutPhoto item={item} />;
   const frame = item.frame ?? "polaroid";
   const seed = item.seed ?? 5;
   if (frame === "polaroid") {
@@ -106,7 +252,7 @@ export default function ItemBody({ item }: { item: Item }) {
           height: "100%",
           background: "linear-gradient(160deg,#fbf9f3,#efece3)",
           padding: `${pad}px ${pad}px ${item.w * 0.2}px`,
-          boxShadow: "1px 3px 8px rgba(60,40,20,.38), 0 1px 1px rgba(0,0,0,.2)",
+          boxShadow: cut ? undefined : "1px 3px 8px rgba(60,40,20,.38), 0 1px 1px rgba(0,0,0,.2)",
           borderRadius: 2,
           boxSizing: "border-box",
         }}
@@ -123,7 +269,7 @@ export default function ItemBody({ item }: { item: Item }) {
   }
   if (frame === "torn") {
     return (
-      <div style={{ width: "100%", height: "100%", filter: SHADOW }}>
+      <div style={{ width: "100%", height: "100%", filter: cut ? undefined : SHADOW }}>
         <div style={{ width: "100%", height: "100%", background: "#fbf9f3", clipPath: jagged(seed, 0, 2.2) }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -142,7 +288,7 @@ export default function ItemBody({ item }: { item: Item }) {
       src={item.src}
       alt=""
       draggable={false}
-      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", border: "3px solid #fbf9f3", boxShadow: "1px 3px 6px rgba(60,40,20,.4)", boxSizing: "border-box", pointerEvents: "none" }}
+      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", border: cut ? undefined : "3px solid #fbf9f3", boxShadow: cut ? undefined : "1px 3px 6px rgba(60,40,20,.4)", boxSizing: "border-box", pointerEvents: "none" }}
     />
   );
 }

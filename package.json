@@ -19,6 +19,7 @@
     "@capacitor/local-notifications": "^8.3.1",
     "@capacitor/share": "^8.0.3",
     "@capacitor/status-bar": "^8.0.4",
+    "@huggingface/transformers": "^4.3.2",
     "firebase": "^13.1.0",
     "html-to-image": "^1.11.13",
     "idb-keyval": "^6.3.0",

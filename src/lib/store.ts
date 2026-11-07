@@ -95,3 +95,30 @@ export function mergeStreakDays(extra: string[]) {
     localStorage.setItem(streakKey(), JSON.stringify(Array.from(new Set([...days, ...extra])).sort().slice(-400)));
   } catch {}
 }
+
+// ---- deleted pages: remembered until the cloud copy is removed too (otherwise a sync would bring them back) ----
+export interface DeletedPage {
+  id: string;
+  photos: string[]; // ids of photo items that were on it
+}
+const delKey = (scopeId: string) => `patchlet.deleted.${scopeId}`;
+
+export function readDeleted(scopeId: string): DeletedPage[] {
+  try {
+    return JSON.parse(localStorage.getItem(delKey(scopeId)) ?? "[]");
+  } catch {
+    return [];
+  }
+}
+
+export function markDeleted(scopeId: string, page: DeletedPage) {
+  try {
+    localStorage.setItem(delKey(scopeId), JSON.stringify([...readDeleted(scopeId).filter((d) => d.id !== page.id), page]));
+  } catch {}
+}
+
+export function clearDeleted(scopeId: string, ids: string[]) {
+  try {
+    localStorage.setItem(delKey(scopeId), JSON.stringify(readDeleted(scopeId).filter((d) => !ids.includes(d.id))));
+  } catch {}
+}

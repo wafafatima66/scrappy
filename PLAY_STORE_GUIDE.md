@@ -100,3 +100,21 @@ Check on the phone: sign-up, add a page, **Save → Save page as image** (opens 
 | Colors, sizes | `src/app/globals.css` |
 | App name / id | `capacitor.config.ts`, `android/app/build.gradle`, `android/app/src/main/res/values/strings.xml` |
 | Icons | `assets/` then `npm run android:icons` |
+
+---
+
+## Part 7 · One-time setup for photo cut-outs on synced photos
+
+The cutout tools read the photo's pixels. Photos you add on this device work straight away. Photos that came
+back from the cloud (for example after logging in on a new phone) are fetched from Firebase Storage, which
+blocks that by default. Fix it once:
+
+1. Install the Google Cloud CLI: <https://cloud.google.com/sdk/docs/install> and run `gcloud auth login`.
+2. In this folder run (your bucket name is the `storageBucket` value in `.env.local`):
+
+```bash
+gsutil cors set cors.json gs://patchlet.firebasestorage.app
+```
+
+The automatic "Remove background" model (MODNet, Apache-2.0) is downloaded from Hugging Face the first time someone uses it
+(about 25 MB) and cached on the device. It needs an internet connection that first time.

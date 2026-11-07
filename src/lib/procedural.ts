@@ -70,7 +70,21 @@ export const PAPERS: [string, string][] = [
   ["rose", "#d9a1a8"],
   ["brown", "#a47c5a"],
   ["plum", "#8d7aa8"],
+  // dark themes
+  ["charcoal", "#3d3b42"],
+  ["navy", "#2f3b57"],
+  ["forest", "#36503f"],
+  ["burgundy", "#6b2f3a"],
+  ["aubergine", "#44335a"],
+  ["espresso", "#4a3528"],
 ];
+
+// is this colour dark enough to need light text on top of it?
+export const isDark = (hex: string) => {
+  const n = parseInt(hex.slice(1), 16);
+  return 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) < 125;
+};
+export const inkFor = (hex: string) => (isDark(hex) ? "#f4efe6" : "#3b3128");
 
 export const TAPES: [string, string][] = [
   ["lilac", "#b9a8d8"],
@@ -81,6 +95,10 @@ export const TAPES: [string, string][] = [
   ["clay", "#cfa98a"],
   ["ivory", "#e6e0d0"],
   ["plum", "#8d7aa8"],
+  ["charcoal", "#4a4a52"],
+  ["navy", "#3b4c78"],
+  ["forest", "#4d7058"],
+  ["burgundy", "#8a3d4c"],
 ];
 
 export const INKS: [string, string][] = [
@@ -89,6 +107,7 @@ export const INKS: [string, string][] = [
   ["plum", "#6a4c93"],
   ["rose", "#b5546a"],
   ["forest", "#4a6a4a"],
+  ["cream", "#f4efe6"],
 ];
 
 // ---------- TORN PAPER ----------
@@ -118,24 +137,39 @@ PAPERS.forEach(([name, c], i) => {
 
 // ---------- PATTERNED PAPER ----------
 
-const patternDefs: Record<string, (c: string) => string> = {
-  lined: (c) => `<rect width="24" height="24" fill="#fbf8ef"/><line x1="0" y1="22" x2="24" y2="22" stroke="${c}" stroke-width="1.2"/>`,
-  grid: (c) => `<rect width="20" height="20" fill="#fbf8ef"/><path d="M20 0H0V20" fill="none" stroke="${c}" stroke-width="1"/>`,
-  dots: (c) => `<rect width="18" height="18" fill="#fbf8ef"/><circle cx="9" cy="9" r="1.7" fill="${c}"/>`,
-  gingham: (c) => `<rect width="30" height="30" fill="#fbf8ef"/><rect width="15" height="30" fill="${c}" opacity=".45"/><rect width="30" height="15" fill="${c}" opacity=".45"/>`,
-  stripes: (c) => `<rect width="28" height="28" fill="#fbf8ef"/><rect width="9" height="28" fill="${c}" opacity=".55"/>`,
-  floral: (c) =>
-    `<rect width="46" height="46" fill="#fbf8ef"/><g fill="${c}" opacity=".7"><circle cx="12" cy="12" r="4"/><circle cx="19" cy="12" r="4"/><circle cx="12" cy="19" r="4"/><circle cx="19" cy="19" r="4"/></g><circle cx="15.5" cy="15.5" r="2.4" fill="#e8c46a"/><g fill="${c}" opacity=".45"><circle cx="35" cy="34" r="3"/><circle cx="40" cy="34" r="3"/><circle cx="35" cy="39" r="3"/><circle cx="40" cy="39" r="3"/></g>`,
+const patternDefs: Record<string, (c: string, b: string) => string> = {
+  lined: (c, b) => `<rect width="24" height="24" fill="${b}"/><line x1="0" y1="22" x2="24" y2="22" stroke="${c}" stroke-width="1.2"/>`,
+  grid: (c, b) => `<rect width="20" height="20" fill="${b}"/><path d="M20 0H0V20" fill="none" stroke="${c}" stroke-width="1"/>`,
+  dots: (c, b) => `<rect width="18" height="18" fill="${b}"/><circle cx="9" cy="9" r="1.7" fill="${c}"/>`,
+  gingham: (c, b) => `<rect width="30" height="30" fill="${b}"/><rect width="15" height="30" fill="${c}" opacity=".45"/><rect width="30" height="15" fill="${c}" opacity=".45"/>`,
+  stripes: (c, b) => `<rect width="28" height="28" fill="${b}"/><rect width="9" height="28" fill="${c}" opacity=".55"/>`,
+  floral: (c, b) =>
+    `<rect width="46" height="46" fill="${b}"/><g fill="${c}" opacity=".7"><circle cx="12" cy="12" r="4"/><circle cx="19" cy="12" r="4"/><circle cx="12" cy="19" r="4"/><circle cx="19" cy="19" r="4"/></g><circle cx="15.5" cy="15.5" r="2.4" fill="#e8c46a"/><g fill="${c}" opacity=".45"><circle cx="35" cy="34" r="3"/><circle cx="40" cy="34" r="3"/><circle cx="35" cy="39" r="3"/><circle cx="40" cy="39" r="3"/></g>`,
 };
 const patSize: Record<string, number> = { lined: 24, grid: 20, dots: 18, gingham: 30, stripes: 28, floral: 46 };
-const patColors: [string, string][] = [
+const patColors: [string, string, string?][] = [
   ["blue", "#8fa8c8"],
   ["rose", "#d88a98"],
   ["sage", "#8fb08a"],
   ["plum", "#8d7aa8"],
+  ["navy", "#5b6f9a"],
+  ["burgundy", "#a65a68"],
+  ["butter", "#d9b95a"],
+  ["peach", "#e8a47a"],
+  ["lilac", "#a995d6"],
+  ["teal", "#5fa3a0"],
+  ["forest", "#5f8a6a"],
+  ["mustard", "#c9a24a"],
+  ["sky", "#7fb2d8"],
+  ["charcoal", "#6b6a72"],
+  // dark paper with light pattern
+  ["midnight", "#aebde0", "#2b3350"],
+  ["wine", "#e0a0ae", "#4a2230"],
+  ["moss", "#b9d4b0", "#2f4636"],
+  ["coal", "#d8d2c4", "#2a2a30"],
 ];
 Object.keys(patternDefs).forEach((pn, pi) => {
-  patColors.forEach(([cn, c], ci) => {
+  patColors.forEach(([cn, c, base = "#fbf8ef"], ci) => {
     const seed = 40 + pi * 4 + ci;
     const w = 240;
     const h = 190;
@@ -146,7 +180,7 @@ Object.keys(patternDefs).forEach((pn, pi) => {
       w,
       h,
       `<defs>${torn(`p${seed}`, seed, 16, 0.045)}
-        <pattern id="pp${seed}" width="${patSize[pn]}" height="${patSize[pn]}" patternUnits="userSpaceOnUse">${patternDefs[pn](c)}</pattern></defs>
+        <pattern id="pp${seed}" width="${patSize[pn]}" height="${patSize[pn]}" patternUnits="userSpaceOnUse">${patternDefs[pn](c, base)}</pattern></defs>
        <g filter="url(#p${seed})"><rect x="22" y="22" width="${w - 44}" height="${h - 44}" fill="url(#pp${seed})"/></g>`,
     );
   });
@@ -200,7 +234,7 @@ LABELS.forEach((t, i) => {
      <text x="${w / 2}" y="${h / 2 + 8}" text-anchor="middle" font-family="'Courier New', Courier, monospace" font-size="${fs}" font-weight="bold" fill="#3b3128" opacity=".88">${t}</text>`,
   );
 });
-PAPERS.slice(0, 8).forEach(([pn, c], i) => {
+PAPERS.forEach(([pn, c], i) => {
   add(
     `tag-${pn}`,
     "tags",
@@ -238,7 +272,7 @@ const STAMP_ART: ((c: string) => string)[] = [
   (c) => `<path d="M60 30L68 52L92 54L73 69L80 92L60 78L40 92L47 69L28 54L52 52Z" fill="${c}" opacity=".85"/>`,
   (c) => `<path d="M24 86Q60 20 96 86Z" fill="${c}" opacity=".8"/><circle cx="60" cy="48" r="10" fill="#f2dc9a"/>`,
 ];
-const STAMP_COLS = ["#a8566a", "#4f7a8f", "#7a8f4f", "#b07a3c"];
+const STAMP_COLS = ["#a8566a", "#4f7a8f", "#7a8f4f", "#b07a3c", "#6a4c93", "#c9a24a", "#2d2a33", "#b5546a", "#3d6a8a", "#8a3d4c", "#2f6f5e", "#d9788f"];
 STAMP_ART.forEach((art, ai) =>
   STAMP_COLS.forEach((c, ci) => {
     const id = `st${ai}${ci}`;
@@ -254,7 +288,7 @@ STAMP_ART.forEach((art, ai) =>
     add(`stamp-${ai}-${ci}`, "stamps", "postage stamp", 120, 144, sv, 90, 108);
   }),
 );
-["#2d2a33", "#6a4c93", "#b5546a", "#3d6a8a"].forEach((c, i) =>
+["#2d2a33", "#6a4c93", "#b5546a", "#3d6a8a", "#8a3d4c", "#2f6f5e", "#c9a24a", "#1f1d1f"].forEach((c, i) =>
   add(
     `postmark-${i}`,
     "stamps",
@@ -338,7 +372,7 @@ doodles.forEach(([name, body, w, h]) =>
     64,
   ),
 );
-["#8c2a35", "#5a3a7a", "#2f5f4a", "#b7863a", "#2a4a7a"].forEach((c, i) =>
+["#8c2a35", "#5a3a7a", "#2f5f4a", "#b7863a", "#2a4a7a", "#1f1d1f", "#c9a24a", "#d9788f", "#e8e0cc", "#2f6f6f", "#7a4a2a", "#8a8f9a", "#b5546a"].forEach((c, i) =>
   add(
     `seal-${i}`,
     "stamps",

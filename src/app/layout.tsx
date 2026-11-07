@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Caveat, Homemade_Apple, Nunito, Playfair_Display, Reenie_Beanie, Special_Elite } from "next/font/google";
+import { Caveat, Dancing_Script, Homemade_Apple, Kalam, Kaushan_Script, Nunito, Playfair_Display, Reenie_Beanie, Special_Elite } from "next/font/google";
 import "./globals.css";
 
 const caveat = Caveat({ variable: "--font-caveat", subsets: ["latin"], weight: ["600", "700"] });
@@ -7,6 +7,9 @@ const special = Special_Elite({ variable: "--font-special", subsets: ["latin"], 
 const playfair = Playfair_Display({ variable: "--font-playfair", subsets: ["latin"], weight: ["500", "600", "700"] });
 const apple = Homemade_Apple({ variable: "--font-apple", subsets: ["latin"], weight: "400" });
 const reenie = Reenie_Beanie({ variable: "--font-reenie", subsets: ["latin"], weight: "400" });
+const dancing = Dancing_Script({ variable: "--font-dancing", subsets: ["latin"], weight: ["500", "700"] });
+const kaushan = Kaushan_Script({ variable: "--font-kaushan", subsets: ["latin"], weight: "400" });
+const kalam = Kalam({ variable: "--font-kalam", subsets: ["latin"], weight: ["400", "700"] });
 const nunito = Nunito({ variable: "--font-ui", subsets: ["latin"], weight: ["400", "600", "700", "800"] });
 
 export const metadata: Metadata = {
@@ -18,7 +21,7 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, them
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${caveat.variable} ${special.variable} ${playfair.variable} ${apple.variable} ${reenie.variable} ${nunito.variable}`}>
+    <html lang="en" className={`${caveat.variable} ${special.variable} ${playfair.variable} ${apple.variable} ${reenie.variable} ${nunito.variable} ${dancing.variable} ${kaushan.variable} ${kalam.variable}`}>
       <body>{children}</body>
     </html>
   );

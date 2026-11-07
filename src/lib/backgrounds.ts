@@ -61,6 +61,12 @@ export const BACKGROUNDS: Bg[] = [
   { id: "stripes", label: "Cloth stripes", swatch: "#efe6d6", css: paper("#f1eadb", { crumple: 0.3, fibre: 1, overlay: stripes("#bfb4d6") }) },
   { id: "gingham", label: "Gingham", swatch: "#e9b9c0", css: paper("#fbf6ee", { crumple: 0.3, fibre: 0.9, overlay: gingham("#d9808f") }) },
   { id: "night", label: "Night", swatch: "#3a3358", dark: true, css: paper("#3a3358", { crumple: 0.5, fibre: 0.3, light: "#cfc6ff" }) },
+  { id: "d-charcoal", label: "Charcoal", swatch: "#3d3b42", dark: true, css: paper("#3d3b42", { crumple: 0.5, fibre: 0.35, light: "#e6e6ee" }) },
+  { id: "d-navy", label: "Navy", swatch: "#2f3b57", dark: true, css: paper("#2f3b57", { crumple: 0.5, fibre: 0.35, light: "#dbe4ff" }) },
+  { id: "d-forest", label: "Forest", swatch: "#36503f", dark: true, css: paper("#36503f", { crumple: 0.5, fibre: 0.35, light: "#e0f0e4" }) },
+  { id: "d-burgundy", label: "Burgundy", swatch: "#6b2f3a", dark: true, css: paper("#6b2f3a", { crumple: 0.5, fibre: 0.35, light: "#ffe3ea" }) },
+  { id: "d-aubergine", label: "Aubergine", swatch: "#44335a", dark: true, css: paper("#44335a", { crumple: 0.5, fibre: 0.35, light: "#eadfff" }) },
+  { id: "d-espresso", label: "Espresso", swatch: "#4a3528", dark: true, css: paper("#4a3528", { crumple: 0.7, fibre: 0.6, light: "#ffe9d6" }) },
 ];
 
 // Plain, flat paper colours (no texture)
@@ -73,7 +79,12 @@ export const PLAIN: Bg[] = [
   ["#dcecf7", "Plain sky"],
   ["#f7efc9", "Plain butter"],
   ["#2b2833", "Plain charcoal"],
-].map(([c, label]) => ({ id: `color:${c}`, label, swatch: c, css: `linear-gradient(${c}, ${c})`, dark: c === "#2b2833" }));
+  ["#1b1a1d", "Plain black"],
+  ["#2f3b57", "Plain navy"],
+  ["#36503f", "Plain forest"],
+  ["#6b2f3a", "Plain burgundy"],
+  ["#44335a", "Plain aubergine"],
+].map(([c, label]) => ({ id: `color:${c}`, label, swatch: c, css: `linear-gradient(${c}, ${c})`, dark: ["#2b2833", "#1b1a1d", "#2f3b57", "#36503f", "#6b2f3a", "#44335a"].includes(c) }));
 
 export const BG_MAP: Record<string, Bg> = Object.fromEntries([...BACKGROUNDS, ...PLAIN].map((b) => [b.id, b]));
 
