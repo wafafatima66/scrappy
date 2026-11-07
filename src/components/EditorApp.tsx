@@ -81,7 +81,7 @@ export default function EditorApp() {
   const [catEl, setCatEl] = useState(ELEMENTS[0].id);
   const [catSt, setCatSt] = useState(STICKERS[0].id);
   const [query, setQuery] = useState("");
-  const [limit, setLimit] = useState(96);
+  const [limit, setLimit] = useState(60);
   const [packs, setPacks] = useState<Pack[]>([]);
   const [draft, setDraft] = useState<{ text: string; font: FontKey; color: string; style: TextStyle; accent: string }>({ text: "", font: "hand", color: "#2d2a33", style: "plain", accent: "#e3b97a" });
   const [pen, setPen] = useState<{ kind: PenKind; color: string; width: number }>({ kind: "pen", color: "#1f1d1f", width: 3 });
@@ -711,12 +711,12 @@ export default function EditorApp() {
             className="panel-body"
             onScroll={(e) => {
               const el = e.currentTarget;
-              if (el.scrollTop + el.clientHeight > el.scrollHeight - 500) setLimit((l) => l + 96);
+              if (el.scrollTop + el.clientHeight > el.scrollHeight - 1100) setLimit((l) => l + 30);
             }}
           >
             {(tab === "elements" || tab === "stickers") && (
               <>
-                <input className="search" placeholder={tab === "stickers" ? "Search stickers…" : "Search tape, stamps, flowers…"} value={query} onChange={(e) => { setQuery(e.target.value); setLimit(96); }} />
+                <input className="search" placeholder={tab === "stickers" ? "Search stickers…" : "Search tape, stamps, flowers…"} value={query} onChange={(e) => { setQuery(e.target.value); setLimit(60); }} />
                 <div className="grid">
                   {shown.map((e) => (
                     <button key={e.id} className={`cell ${e.emoji ? "emoji" : ""}`} title={e.label} onClick={() => addEntry(e)}>
@@ -724,7 +724,7 @@ export default function EditorApp() {
                         <span>{e.emoji}</span>
                       ) : (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={e.src} alt={e.label} loading="lazy" draggable={false} />
+                        <img src={e.src} alt={e.label} loading="lazy" decoding="async" draggable={false} />
                       )}
                     </button>
                   ))}

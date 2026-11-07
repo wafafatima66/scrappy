@@ -34,8 +34,8 @@ export async function saveFile(data: string | Blob, filename: string, title = "S
         }
         await Filesystem.writeFile({ path: `${folder}/Patchlet/${filename}`, data: base64, directory: Directory.ExternalStorage, recursive: true });
         return "saved";
-      } catch {
-        /* fall through to the share sheet */
+      } catch (e) {
+        console.warn("[save] could not write to the gallery, using the share sheet instead:", e);
       }
     }
     const { Share } = await import("@capacitor/share");

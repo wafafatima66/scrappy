@@ -1274,3 +1274,52 @@ code {
 .syncdot.error {
   color: var(--danger);
 }
+
+/* phone / tablet editor: page thumbnails in a slim column beside the page */
+@media (max-width: 979px) {
+  .stage {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .stage .canvas-area {
+    flex: 1;
+    min-width: 0;
+  }
+  .stage .strip {
+    order: -1;
+    flex: none;
+    width: 62px;
+    margin: 0;
+    padding: 8px 4px;
+    border-radius: 18px;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .stage .strip-scroll {
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 6px 8px 6px 4px;
+    gap: 10px;
+    scrollbar-width: none;
+  }
+  .stage .strip-scroll::-webkit-scrollbar {
+    display: none;
+  }
+  .stage .pthumb.add {
+    width: 44px;
+    height: 58px;
+  }
+}
+@media (max-width: 979px) {
+  /* the + button stays visible at the bottom of the column however many pages there are */
+  .stage .pthumb.add {
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+    flex: none;
+    margin-top: auto;
+  }
+}

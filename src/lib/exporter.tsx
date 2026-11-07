@@ -28,17 +28,24 @@ export async function pageToPng(page: Page, ratio = 2): Promise<string> {
   }
 }
 
+// every save gets its own name, so a file left by an earlier install (which Android won't let us overwrite) never blocks it
+const stamp = () => {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${String(d.getFullYear()).slice(2)}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+};
+
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "patchlet";
 
 export async function exportPagePng(book: Book, page: Page, index: number): Promise<SaveResult> {
   await beforeExport("image");
-  return saveFile(await pageToPng(page, 2), `${slug(book.title)}-page-${index + 1}.png`, "Save page as image", "Pictures");
+  return saveFile(await pageToPng(page, 2), `${slug(book.title)}-page-${index + 1}-${stamp()}.png`, "Save page as image", "Pictures");
 }
 
 // opens the phone's share sheet (WhatsApp, Instagram, Drive…)
 export async function sharePageImage(book: Book, page: Page, index: number): Promise<SaveResult> {
   await beforeExport("image");
-  return saveFile(await pageToPng(page, 2), `${slug(book.title)}-page-${index + 1}.png`, "Share this page");
+  return saveFile(await pageToPng(page, 2), `${slug(book.title)}-page-${index + 1}-${stamp()}.png`, "Share this page");
 }
 
 async function buildPdf(pages: Page[], onProgress?: (n: number, total: number) => void) {
@@ -57,7 +64,7 @@ export async function exportPdf(book: Book, pages: Page[], name: string, onProgr
   await beforeExport("pdf");
   const pdf = await buildPdf(pages, onProgress);
   void book;
-  return saveFile(pdf.output("blob"), `${slug(name)}.pdf`, "Save as PDF", "Documents");
+  return saveFile(pdf.output("blob"), `${slug(name)}-${stamp()}.pdf`, "Save as PDF", "Documents");
 }
 
 // Print: browsers open the print dialog; in the Android app the PDF opens in the share sheet,
