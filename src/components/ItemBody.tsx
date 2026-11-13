@@ -216,6 +216,44 @@ function Inner({ item, cut }: { item: Item; cut: boolean }) {
       const o = Math.max(2, size * 0.07);
       return <div style={{ ...base, textShadow: `${o}px ${o}px 0 ${accent}, ${o * 1.5}px ${o * 1.5}px 0 ${accent}88` }}>{item.text}</div>;
     }
+    if (item.style === "outline") {
+      return <div style={{ ...base, WebkitTextStroke: `${Math.max(1.5, size * 0.045)}px ${accent}`, paintOrder: "stroke fill" }}>{item.text}</div>;
+    }
+    if (item.style === "neon") {
+      const g = Math.max(3, size * 0.12);
+      return <div style={{ ...base, color: "#fffdf6", textShadow: `0 0 ${g * 0.5}px #fff, 0 0 ${g}px ${accent}, 0 0 ${g * 2}px ${accent}, 0 0 ${g * 3.5}px ${accent}` }}>{item.text}</div>;
+    }
+    if (item.style === "retro") {
+      const o = Math.max(2, size * 0.06);
+      const sh = Array.from({ length: 5 }, (_, i) => `${(i + 1) * o * 0.7}px ${(i + 1) * o * 0.7}px 0 ${i % 2 ? "#2d2a33" : accent}`).join(", ");
+      return <div style={{ ...base, textShadow: sh }}>{item.text}</div>;
+    }
+    if (item.style === "stamp") {
+      return (
+        <div style={{ ...base, textTransform: "uppercase", letterSpacing: size * 0.08, opacity: 0.88 }}>
+          <span style={{ display: "inline-block", border: `${Math.max(2, size * 0.09)}px double ${item.color ?? "#b5546a"}`, borderRadius: size * 0.18, padding: `${size * 0.12}px ${size * 0.4}px` }}>{item.text}</span>
+        </div>
+      );
+    }
+    if (item.style === "sticker") {
+      const o = Math.max(2, size * 0.09);
+      const ring = [[o, 0], [-o, 0], [0, o], [0, -o], [o * 0.7, o * 0.7], [-o * 0.7, o * 0.7], [o * 0.7, -o * 0.7], [-o * 0.7, -o * 0.7]].map(([x, y]) => `${x}px ${y}px 0 ${accent}`).join(", ");
+      return <div style={{ ...base, textShadow: ring, filter: "drop-shadow(1px 2px 2px rgba(40,30,20,.4))" }}>{item.text}</div>;
+    }
+    if (item.style === "underline") {
+      return (
+        <div style={base}>
+          <span style={{ textDecoration: "underline wavy", textDecorationColor: accent, textDecorationThickness: Math.max(2, size * 0.06), textUnderlineOffset: size * 0.14 }}>{item.text}</span>
+        </div>
+      );
+    }
+    if (item.style === "label") {
+      return (
+        <div style={{ ...base, color: "#f4f1ea", background: "linear-gradient(180deg,#34303a,#1f1c24)", padding: `${size * 0.22}px ${size * 0.5}px`, boxSizing: "border-box", borderRadius: size * 0.12, textTransform: "uppercase", letterSpacing: size * 0.1, textShadow: "0 -1px 0 rgba(0,0,0,.6), 0 1px 0 rgba(255,255,255,.15)", boxShadow: "inset 0 0 0 2px rgba(255,255,255,.12), 1px 2px 4px rgba(40,30,20,.4)" }}>
+          {item.text}
+        </div>
+      );
+    }
     if (item.style === "highlight") {
       return (
         <div style={base}>

@@ -3,8 +3,8 @@ import type { PhotoBg } from "./photoBg";
 export const PAGE_W = 600;
 export const PAGE_H = 800;
 
-export type FontKey = "hand" | "type" | "serif" | "script" | "marker" | "dance" | "brush" | "neat";
-export type TextStyle = "plain" | "strip" | "tag" | "shadow" | "highlight";
+export type FontKey = "hand" | "type" | "serif" | "script" | "marker" | "dance" | "brush" | "neat" | "pacifico" | "permanent" | "shadows" | "amatic" | "bebas" | "abril" | "lobster" | "indie" | "cormorant" | "rocksalt";
+export type TextStyle = "plain" | "strip" | "tag" | "shadow" | "highlight" | "outline" | "neon" | "retro" | "stamp" | "sticker" | "underline" | "label";
 export type PhotoFrame = "polaroid" | "plain" | "torn";
 export type EdgeKind = "torn" | "wavy" | "zigzag" | "scallop" | "perf" | "deckle";
 export type PenKind = "pen" | "dots" | "dash" | "marker";

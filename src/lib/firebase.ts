@@ -1,6 +1,6 @@
 import { FirebaseApp, getApps, initializeApp } from "firebase/app";
 import { Auth, getAuth } from "firebase/auth";
-import { Firestore, getFirestore } from "firebase/firestore";
+import { Firestore, getFirestore, initializeFirestore } from "firebase/firestore";
 import { FirebaseStorage, getStorage } from "firebase/storage";
 
 // Fill these in .env.local (see PLAY_STORE_GUIDE.md). Without them the app runs in
@@ -24,5 +24,16 @@ const getApp = () => {
 };
 
 export const fbAuth = (): Auth => getAuth(getApp());
-export const fbDb = (): Firestore => getFirestore(getApp());
+// Phones' web views often can't hold the streaming connection Firestore prefers, so a read just hangs.
+// Letting it fall back to plain requests makes the cloud copy load reliably on every device.
+let db: Firestore | null = null;
+export const fbDb = (): Firestore => {
+  if (db) return db;
+  try {
+    db = initializeFirestore(getApp(), { experimentalAutoDetectLongPolling: true });
+  } catch {
+    db = getFirestore(getApp());
+  }
+  return db;
+};
 export const fbStorage = (): FirebaseStorage => getStorage(getApp());

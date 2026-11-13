@@ -110,6 +110,18 @@ export interface Category {
 
 export const byCat = (cat: string): Entry[] => (cat === "emoji" ? emojiEntries : ALL.filter((s) => s.cat === cat));
 
+// a few broad groups instead of fifteen tabs
+export const ELEMENT_GROUPS: { id: string; label: string; cats: string[] }[] = [
+  { id: "tape", label: "Tape & paper", cats: ["tape", "paper", "brush", "pattern"] },
+  { id: "frames", label: "Frames & lace", cats: ["frames", "borders", "film", "lace"] },
+  { id: "stamps", label: "Stamps & tickets", cats: ["envelopes", "tickets", "countries", "datestamps", "stamps"] },
+  { id: "doodles", label: "Doodles & tags", cats: ["doodles", "tags"] },
+];
+export const groupElements = (id: string): Entry[] => {
+  const g = ELEMENT_GROUPS.find((x) => x.id === id);
+  return g ? g.cats.flatMap((c) => byCat(c)) : ALL_ELEMENTS;
+};
+
 // one flat list for the panel: no category tabs
 export const ALL_ELEMENTS: Entry[] = ELEMENT_CATS.flatMap((c) => byCat(c.id));
 

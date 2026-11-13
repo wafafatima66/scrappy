@@ -6,7 +6,7 @@ import { loadLocalAvatar, useSession } from "@/lib/auth";
 import { BACKGROUNDS, PLAIN } from "@/lib/backgrounds";
 import { addDayPage } from "@/lib/book";
 import { loadBookFor } from "@/lib/bookload";
-import { ALL_ELEMENTS, BY_ID, ELEMENTS, Entry, Pack, STICKERS, Category, findEntry, loadPacks, packCategories, variantsOf } from "@/lib/catalog";
+import { ALL_ELEMENTS, BY_ID, ELEMENT_GROUPS, groupElements, ELEMENTS, Entry, Pack, STICKERS, Category, findEntry, loadPacks, packCategories, variantsOf } from "@/lib/catalog";
 import { COVER_THEMES, CoverTheme, makeBack, makeCover } from "@/lib/cover";
 import { todayKey, todayPage } from "@/lib/daily";
 import { exportPagePng, exportPdf, printPages, sharePageImage } from "@/lib/exporter";
@@ -18,7 +18,7 @@ import { pageBackground } from "@/lib/pagebg";
 import { markDeleted, readStreak, saveBook, uid } from "@/lib/store";
 import { autoCutout, bakeLasso, plainBackgroundCutout, smallPhoto } from "@/lib/cutout";
 import { PBG_COLORS, PBG_GRADIENTS, PhotoBg } from "@/lib/photoBg";
-import { describeSyncError, pushBook } from "@/lib/sync";
+import { describeSyncError, pullAndMerge, pushBook } from "@/lib/sync";
 import { TEMPLATES } from "@/lib/templates";
 import { Book, EdgeKind, FontKey, Item, PAGE_H, PAGE_W, Page, PenKind, PhotoFrame, TextStyle } from "@/lib/types";
 import Avatar from "./Avatar";
@@ -68,12 +68,29 @@ async function fileToPhoto(file: File): Promise<{ src: string; aspect: number }>
 
 const photoHeight = (w: number, aspect: number, frame: PhotoFrame) => (frame === "polaroid" ? w * 0.88 * aspect + w * 0.26 : w * aspect);
 
+const STYLE_LABELS: Record<TextStyle, string> = {
+  plain: "Plain",
+  shadow: "Shadow",
+  highlight: "Highlighter",
+  outline: "Outline",
+  neon: "Neon glow",
+  retro: "Retro 3D",
+  sticker: "Sticker",
+  underline: "Wavy underline",
+  stamp: "Rubber stamp",
+  label: "Label maker",
+  strip: "Paper strip",
+  tag: "Colour tag",
+};
+const ACCENT_STYLES: TextStyle[] = ["shadow", "highlight", "outline", "neon", "retro", "sticker", "underline"];
+
 export default function EditorApp() {
   const router = useRouter();
   const pageParam = useSearchParams().get("p");
   const s = useSession();
   const [book, setBook] = useState<Book | null>(null);
   const [pageIdx, setPageIdx] = useState(0);
+  const pageIdxRef = useRef(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("elements");
   const [panelOpen, setPanelOpen] = useState(true);
@@ -82,6 +99,7 @@ export default function EditorApp() {
   const [catSt, setCatSt] = useState(STICKERS[0].id);
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(60);
+  const [group, setGroup] = useState("all");
   const [packs, setPacks] = useState<Pack[]>([]);
   const [draft, setDraft] = useState<{ text: string; font: FontKey; color: string; style: TextStyle; accent: string }>({ text: "", font: "hand", color: "#2d2a33", style: "plain", accent: "#e3b97a" });
   const [pen, setPen] = useState<{ kind: PenKind; color: string; width: number }>({ kind: "pen", color: "#1f1d1f", width: 3 });
@@ -139,13 +157,13 @@ export default function EditorApp() {
   // ---- autosave (device now, cloud a moment later) ----
   const bookRef = useRef<Book | null>(null);
   bookRef.current = book;
+  pageIdxRef.current = pageIdx;
   useEffect(() => {
     if (!book) return;
-    if (!loaded.current) {
-      loaded.current = true;
-      return;
-    }
+    const first = !loaded.current;
+    loaded.current = true;
     const t = setTimeout(async () => {
+      if (first) return;
       await saveBook(book);
       const done = book.pages.some((p) => p.kind === "day" && p.date === todayKey() && p.items.length > 0);
       void scheduleStreakReminders({ name: s.name, streak: readStreak().count, doneToday: done });
@@ -182,6 +200,33 @@ export default function EditorApp() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [book]);
+
+  // ---- bring in pages made on another device (when the app comes back, and when the cloud button is tapped) ----
+  const pullNow = useCallback(async (say?: boolean) => {
+    const cur = bookRef.current;
+    if (!s.uid || !cur) return;
+    try {
+      const merged = await pullAndMerge(s.uid, cur);
+      const same = merged.pages.length === cur.pages.length && merged.pages.every((p, i) => p === cur.pages[i]);
+      if (!same) {
+        const here = cur.pages[Math.min(pageIdxRef.current, cur.pages.length - 1)]?.id;
+        setBook(merged);
+        const at = merged.pages.findIndex((p) => p.id === here);
+        if (at >= 0) setPageIdx(at);
+      }
+      if (say) note(same ? "Everything is up to date" : "Pages from your other device were added");
+    } catch (e) {
+      if (say) note(describeSyncError(e));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.uid]);
+  useEffect(() => {
+    const on = () => {
+      if (document.visibilityState === "visible") void pullNow();
+    };
+    document.addEventListener("visibilitychange", on);
+    return () => document.removeEventListener("visibilitychange", on);
+  }, [pullNow]);
 
   // ---- canvas fit ----
   useEffect(() => {
@@ -591,7 +636,7 @@ export default function EditorApp() {
   const catId = isStickers ? catSt : catEl;
   const activeCat = cats.find((c) => c.id === catId) ?? cats[0];
   const searchPool = isStickers ? stickerCats : [...elementCats];
-  const pool: Entry[] = q ? ALL_ELEMENTS.filter((e) => e.label.toLowerCase().includes(q) || e.id.includes(q)) : ALL_ELEMENTS;
+  const pool: Entry[] = q ? ALL_ELEMENTS.filter((e) => e.label.toLowerCase().includes(q) || e.id.includes(q)) : group === "all" ? ALL_ELEMENTS : groupElements(group);
   const shown = pool.slice(0, limit);
 
   const pageLabel = (p: Page, i: number) => (p.kind === "cover" ? "Cover" : p.kind === "back" ? "End" : String(i));
@@ -618,7 +663,7 @@ export default function EditorApp() {
           <small>
             {title}
             {s.uid && sync.state !== "idle" && (
-              <button className={`syncdot ${sync.state}`} onClick={() => note(sync.msg ?? (sync.state === "ok" ? "Backed up to your account" : "Backing up…"))} aria-label="Backup status">
+              <button className={`syncdot ${sync.state}`} onClick={() => (sync.state === "error" ? note(sync.msg ?? "Couldn’t back up yet") : void pullNow(true))} aria-label="Backup status">
                 {sync.state === "ok" ? "☁ ✓" : sync.state === "error" ? "☁ !" : "☁ …"}
               </button>
             )}
@@ -717,6 +762,15 @@ export default function EditorApp() {
             {(tab === "elements" || tab === "stickers") && (
               <>
                 <input className="search" placeholder={tab === "stickers" ? "Search stickers…" : "Search tape, stamps, flowers…"} value={query} onChange={(e) => { setQuery(e.target.value); setLimit(60); }} />
+                {tab === "elements" && !query && (
+                  <div className="chips groups">
+                    {[{ id: "all", label: "All" }, ...ELEMENT_GROUPS].map((g) => (
+                      <button key={g.id} className={`chip ${group === g.id ? "on" : ""}`} onClick={() => { setGroup(g.id); setLimit(60); }}>
+                        {g.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div className="grid">
                   {shown.map((e) => (
                     <button key={e.id} className={`cell ${e.emoji ? "emoji" : ""}`} title={e.label} onClick={() => addEntry(e)}>
@@ -753,15 +807,15 @@ export default function EditorApp() {
                 </div>
                 <label className="lbl">Style</label>
                 <div className="chips wrap">
-                  {(["plain", "shadow", "highlight", "strip", "tag"] as TextStyle[]).map((st) => (
+                  {(Object.keys(STYLE_LABELS) as TextStyle[]).map((st) => (
                     <button key={st} className={`chip ${form.style === st ? "on" : ""}`} onClick={() => setForm({ style: st })}>
-                      {st === "plain" ? "Plain" : st === "shadow" ? "Shadow" : st === "highlight" ? "Highlighter" : st === "strip" ? "Paper strip" : "Colour tag"}
+                      {STYLE_LABELS[st]}
                     </button>
                   ))}
                 </div>
-                {(form.style === "shadow" || form.style === "highlight") && (
+                {ACCENT_STYLES.includes(form.style) && (
                   <>
-                    <label className="lbl">{form.style === "shadow" ? "Shadow colour" : "Highlighter colour"}</label>
+                    <label className="lbl">{form.style === "highlight" ? "Highlighter colour" : form.style === "outline" ? "Outline colour" : form.style === "neon" ? "Glow colour" : form.style === "sticker" ? "Sticker edge colour" : form.style === "underline" ? "Underline colour" : "Shadow colour"}</label>
                     <div className="dots">
                       {ACCENTS.map((c) => (
                         <button key={c} className={`dot ${form.accent === c ? "on" : ""}`} style={{ background: c }} onClick={() => setForm({ accent: c })} aria-label={c} />
