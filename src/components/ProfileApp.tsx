@@ -23,7 +23,7 @@ export default function ProfileApp() {
   const [pw, setPw] = useState("");
 
   useEffect(() => {
-    if (s.status === "out") router.replace("/");
+    if (s.status === "out") router.replace("/app/");
     if (s.status === "in") {
       setName(s.name);
       loadLocalAvatar();
@@ -55,7 +55,7 @@ export default function ProfileApp() {
   return (
     <div className="home profile">
       <header className="home-head">
-        <Link href="/" className="btn round" aria-label="Back home">
+        <Link href="/app/" className="btn round" aria-label="Back home">
           ‹
         </Link>
         <h2 className="sec" style={{ margin: 0 }}>
@@ -164,7 +164,7 @@ export default function ProfileApp() {
               className="menu-link"
               onClick={async () => {
                 await logout();
-                router.replace("/");
+                router.replace("/app/");
               }}
             >
               Log out
@@ -183,7 +183,7 @@ export default function ProfileApp() {
                     setBusy(true);
                     try {
                       await deleteAccount(pw);
-                      router.replace("/");
+                      router.replace("/app/");
                     } catch (e) {
                       flash(friendlyAuthError(e));
                     } finally {

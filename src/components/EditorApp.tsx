@@ -132,7 +132,7 @@ export default function EditorApp() {
 
   // ---- load ----
   useEffect(() => {
-    if (s.status === "out") router.replace("/");
+    if (s.status === "out") router.replace("/app/");
     if (s.status !== "in") return;
     loadLocalAvatar();
     loadPacks().then(setPacks);
@@ -655,7 +655,7 @@ export default function EditorApp() {
   return (
     <div className="editor">
       <header className="ed-top">
-        <Link href="/" className="btn round" aria-label="Back to home" title="Home">
+        <Link href="/app/" className="btn round" aria-label="Back to home" title="Home">
           ‹
         </Link>
         <div className="ed-title">

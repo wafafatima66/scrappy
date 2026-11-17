@@ -4,7 +4,7 @@ export const metadata = { title: "Privacy policy — Patchlet" };
 
 // Replace CONTACT_EMAIL and the date before you publish to the Play Store.
 const CONTACT_EMAIL = "awhs.family@gmail.com";
-const UPDATED = "25 October 2026";
+const UPDATED = "17 November 2026";
 
 export default function Privacy() {
   return (
@@ -51,6 +51,11 @@ export default function Privacy() {
       <h2>Photos and permissions</h2>
       <p>
         The app asks to read a photo only when you choose one to add to a page or use as your profile picture. It asks permission to show notifications only for streak reminders.
+      </p>
+
+      <h2>Website analytics</h2>
+      <p>
+        Our website uses Google Analytics to count visits and to see which links bring people to us (for example Instagram or a search). It records things like the page you opened, your approximate location, your device type and the site you came from. It does not collect your name or email address. Analytics cookies are only switched on if you tap “Allow” on the notice; you can say “No thanks” and the site works the same. The Android app does not use Google Analytics.
       </p>
 
       <h2>Ads</h2>
