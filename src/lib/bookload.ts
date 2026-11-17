@@ -16,7 +16,7 @@ export async function loadBookFor(s: Session): Promise<Book> {
       const merged = await Promise.race([pullAndMerge(s.uid, book), new Promise<Book>((_, rej) => setTimeout(() => rej(new Error("timeout")), 20000))]);
       book = normalizeBook(merged, s.name);
       lastPullError = "";
-      mergeStreakDays(book.pages.filter((p) => p.kind === "day" && p.items.length > 0 && p.date).map((p) => p.date as string));
+      mergeStreakDays(book.pages.filter((p) => p.kind === "day" && (p.items.length > 0 || !!p.flat) && p.date).map((p) => p.date as string));
       // keep what came from the cloud on this device too, and send up anything only this device has
       await saveBook(book);
       void pushBook(s.uid, book).catch(() => undefined);

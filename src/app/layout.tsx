@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Abril_Fatface, Amatic_SC, Bebas_Neue, Caveat, Cormorant_Garamond, Dancing_Script, Homemade_Apple, Indie_Flower, Kalam, Kaushan_Script, Lobster, Nunito, Pacifico, Permanent_Marker, Playfair_Display, Reenie_Beanie, Rock_Salt, Shadows_Into_Light, Special_Elite } from "next/font/google";
 import Analytics from "@/components/Analytics";
+import AppAnalytics from "@/components/AppAnalytics";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {children}
         <Analytics />
+        <AppAnalytics />
       </body>
     </html>
   );

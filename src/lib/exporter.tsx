@@ -1,13 +1,14 @@
 import React from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { toPng } from "html-to-image";
+import { toCanvas, toPng } from "html-to-image";
 import PageStatic from "@/components/PageStatic";
 import { beforeExport } from "./ads";
 import { SaveResult, isNative, saveFile } from "./native";
 import { PAGE_H, PAGE_W, Book, Page } from "./types";
 
-export async function pageToPng(page: Page, ratio = 2): Promise<string> {
+// draws the page off-screen and hands the node to `run`
+async function withPageNode<T>(page: Page, run: (node: HTMLElement) => Promise<T>): Promise<T> {
   const host = document.createElement("div");
   host.style.cssText = "position:fixed;left:-99999px;top:0;pointer-events:none;";
   document.body.appendChild(host);
@@ -18,14 +19,39 @@ export async function pageToPng(page: Page, ratio = 2): Promise<string> {
     await Promise.all(imgs.map((i) => i.decode().catch(() => undefined)));
     await document.fonts.ready;
     await new Promise((r) => setTimeout(r, 150));
-    const node = host.firstElementChild as HTMLElement;
-    // first call primes font/image embedding, second is the keeper
-    await toPng(node, { pixelRatio: 1, width: PAGE_W, height: PAGE_H }).catch(() => undefined);
-    return await toPng(node, { pixelRatio: ratio, width: PAGE_W, height: PAGE_H });
+    return await run(host.firstElementChild as HTMLElement);
   } finally {
     root.unmount();
     host.remove();
   }
+}
+
+export function pageToPng(page: Page, ratio = 2): Promise<string> {
+  return withPageNode(page, async (node) => {
+    // first call primes font/image embedding, second is the keeper
+    await toPng(node, { pixelRatio: 1, width: PAGE_W, height: PAGE_H }).catch(() => undefined);
+    return await toPng(node, { pixelRatio: ratio, width: PAGE_W, height: PAGE_H });
+  });
+}
+
+// One small WebP of the whole page: this is what the cloud keeps (a page picture is a few hundred KB at most).
+const WEBP_TRIES: [number, number][] = [
+  [1.5, 0.8],
+  [1.5, 0.65],
+  [1.25, 0.6],
+  [1, 0.55],
+];
+export function pageToWebp(page: Page, maxBytes = 650_000): Promise<string> {
+  return withPageNode(page, async (node) => {
+    await toCanvas(node, { pixelRatio: 1, width: PAGE_W, height: PAGE_H }).catch(() => undefined);
+    for (const [ratio, q] of WEBP_TRIES) {
+      const canvas = await toCanvas(node, { pixelRatio: ratio, width: PAGE_W, height: PAGE_H });
+      let url = canvas.toDataURL("image/webp", q);
+      if (!url.startsWith("data:image/webp")) url = canvas.toDataURL("image/jpeg", q); // a browser that cannot write WebP
+      if ((url.length * 3) / 4 <= maxBytes) return url;
+    }
+    throw new Error("page picture too large");
+  });
 }
 
 // every save gets its own name, so a file left by an earlier install (which Android won't let us overwrite) never blocks it
@@ -94,4 +120,17 @@ export async function printPages(pages: Page[], name: string, onProgress?: (n: n
   frame.contentWindow!.focus();
   frame.contentWindow!.print();
   setTimeout(() => frame.remove(), 60000);
+}
+
+// test hook: lets a developer try the page-picture maker from the browser console
+if (typeof window !== "undefined" && typeof localStorage !== "undefined" && localStorage.getItem("patchlet.debug")) {
+  void Promise.all([import("./templates"), import("./cover"), import("./store")]).then(([t, c, st]) => {
+    (window as unknown as { __plPage: unknown }).__plPage = {
+      pageToWebp,
+      demo: (i: number) => ({ id: `demo-${i}`, kind: "day", bg: t.TEMPLATES[i].bg, items: t.TEMPLATES[i].build(), updated: Date.now() }),
+      cover: () => c.makeCover("Maya"),
+      loadMainBook: st.loadMainBook,
+      saveBook: st.saveBook,
+    };
+  });
 }

@@ -62,7 +62,7 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
   { q: "Which devices does it work on?", a: "Android phones and tablets through Google Play. There is also a web version you can try in any browser, which is handy for a quick look." },
   { q: "What is the difference between the web version and the Android app?", a: "The web version has the page editor, elements, text, photos and flipbook. The Android app adds the daily reminder, saving straight into your gallery and a smoother touch experience." },
   { q: "Is there an iPhone version?", a: "Not yet. For now, iPhone users can try the web version in Safari." },
-  { q: "Who can see my pages?", a: "Only you. Pages and photos are stored under your own account. You can delete your account and everything in it whenever you want." },
+  { q: "Who can see my pages?", a: "Only you. When you sign in, a picture of each page is saved under your own account. The photos you add stay on your own device. You can delete your account and everything in it whenever you want." },
   { q: "Why do I have to join the tester group first?", a: "Patchlet is in Google Play’s testing stage. Google asks new apps to be tried by a group of real people before a public launch. Testers get the app free and help us fix things before everyone else gets it." },
 ];
 

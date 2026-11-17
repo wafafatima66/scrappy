@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "494894320385",
+    "project_id": "patchlet",
+    "storage_bucket": "patchlet.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:494894320385:android:1dc24d732843c4ca2e2900",
+        "android_client_info": {
+          "package_name": "com.patchlet.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "494894320385-d8kdao7rapob0r7cbehjav6b60q8ljqt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDVGGYdGJ17hsP2TSmUa44cdSzw3bc9jII"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "494894320385-d8kdao7rapob0r7cbehjav6b60q8ljqt.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -7,6 +7,14 @@ import ItemBody, { itemStyle } from "./ItemBody";
 // Non-interactive page, scaled to `width` px. Used for thumbnails, flipbook and export.
 export default function PageStatic({ page, width, className }: { page: Page; width: number; className?: string }) {
   const k = width / PAGE_W;
+  if (page.flat) {
+    return (
+      <div className={className} style={{ width, height: PAGE_H * k, overflow: "hidden", position: "relative", flexShrink: 0 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={page.flat} alt="" draggable={false} style={{ width: "100%", height: "100%", display: "block", objectFit: "fill" }} />
+      </div>
+    );
+  }
   return (
     <div className={className} style={{ width, height: PAGE_H * k, overflow: "hidden", position: "relative", flexShrink: 0 }}>
       <div

@@ -4,7 +4,7 @@ export const metadata = { title: "Delete your account — Patchlet" };
 
 // Same address as the privacy page. Keep these two in step.
 const CONTACT_EMAIL = "awhs.family@gmail.com";
-const UPDATED = "7 November 2026";
+const UPDATED = "21 November 2026";
 
 export default function DeleteAccount() {
   const mail = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("Delete my Patchlet account")}&body=${encodeURIComponent("Please delete my Patchlet account and all my data.\n\nThe email I signed up with: ")}`;
@@ -40,7 +40,7 @@ export default function DeleteAccount() {
       <ul>
         <li>Your account (name, email address and login).</li>
         <li>All your scrapbook pages, including your cover and end page.</li>
-        <li>All photos you added, their cut-outs and backgrounds, and your profile picture.</li>
+        <li>The picture saved of each page, and your profile picture.</li>
         <li>Your streak history and settings stored with your account.</li>
       </ul>
 
@@ -54,6 +54,7 @@ export default function DeleteAccount() {
           which can take up to 6 months. We can’t read or restore them.
         </li>
         <li>Images or PDFs you saved to your own phone or computer stay there. They are your files, so delete them yourself if you wish.</li>
+        <li>If you allowed usage statistics in the app, those anonymous counts are not linked to your name or email. They stay with Google Analytics for Firebase until they expire (up to 14 months) and can’t be tied back to you. You can switch them off in Profile.</li>
         <li>If you email us a deletion request, we keep that email only as long as needed to handle it.</li>
       </ul>
 

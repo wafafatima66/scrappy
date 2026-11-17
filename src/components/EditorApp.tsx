@@ -20,6 +20,8 @@ import { autoCutout, bakeLasso, plainBackgroundCutout, smallPhoto } from "@/lib/
 import { PBG_COLORS, PBG_GRADIENTS, PhotoBg } from "@/lib/photoBg";
 import { describeSyncError, pullAndMerge, pushBook } from "@/lib/sync";
 import { TEMPLATES } from "@/lib/templates";
+import TemplateGrid from "./TemplateGrid";
+import { track } from "@/lib/analytics";
 import { Book, EdgeKind, FontKey, Item, PAGE_H, PAGE_W, Page, PenKind, PhotoFrame, TextStyle } from "@/lib/types";
 import Avatar from "./Avatar";
 import EditorCanvas, { CanvasMode, Pt } from "./EditorCanvas";
@@ -118,6 +120,8 @@ export default function EditorApp() {
   const areaRef = useRef<HTMLDivElement>(null);
   const loaded = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const slotFileRef = useRef<HTMLInputElement>(null);
+  const slotIdRef = useRef<string | null>(null);
   const bgFileRef = useRef<HTMLInputElement>(null);
   const dragY = useRef<number | null>(null);
 
@@ -142,7 +146,7 @@ export default function EditorApp() {
       if (pageParam === "cover") at = 0;
       else if (pageParam === "back") at = b.pages.length - 1;
       else if (pageParam) at = b.pages.findIndex((p) => p.id === pageParam);
-      if (at < 0) at = b.pages.findIndex((p) => p.kind === "day" && p.date === todayKey());
+      if (at < 0) at = b.pages.findIndex((p) => p.kind === "day" && p.date === todayKey() && !p.flat);
       if (at < 0) {
         cur = addDayPage(b, todayPage());
         at = cur.pages.length - 2; // just before the back cover
@@ -165,35 +169,10 @@ export default function EditorApp() {
     const t = setTimeout(async () => {
       if (first) return;
       await saveBook(book);
-      const done = book.pages.some((p) => p.kind === "day" && p.date === todayKey() && p.items.length > 0);
+      const done = book.pages.some((p) => p.kind === "day" && p.date === todayKey() && (p.items.length > 0 || !!p.flat));
       void scheduleStreakReminders({ name: s.name, streak: readStreak().count, doneToday: done });
     }, 500);
-    const c = s.uid
-      ? setTimeout(async () => {
-          try {
-            setSync((x) => ({ ...x, state: "syncing" }));
-            const { swapped, error } = await pushBook(s.uid as string, book);
-            setSync(error ? { state: "error", msg: error } : { state: "ok" });
-            if (Object.keys(swapped).length) {
-              // photos now live in the cloud: swap their data URIs for URLs, but only where nothing changed meanwhile
-              const sw = (v?: string) => (v && swapped[v] ? swapped[v] : v);
-              setBook((b) =>
-                b
-                  ? {
-                      ...b,
-                      pages: b.pages.map((p) => ({
-                        ...p,
-                        items: p.items.map((i) => (i.kind === "photo" ? { ...i, src: sw(i.src), cut: sw(i.cut), pbg: i.pbg?.k === "photo" ? { ...i.pbg, v: sw(i.pbg.v) } : i.pbg } : i)),
-                      })),
-                    }
-                  : b,
-              );
-            }
-          } catch (e) {
-            setSync({ state: "error", msg: describeSyncError(e) });
-          }
-        }, 2500)
-      : null;
+    const c = s.uid ? setTimeout(() => void pushNow(), 6000) : null;
     return () => {
       clearTimeout(t);
       if (c) clearTimeout(c);
@@ -227,6 +206,40 @@ export default function EditorApp() {
     document.addEventListener("visibilitychange", on);
     return () => document.removeEventListener("visibilitychange", on);
   }, [pullNow]);
+
+  // ---- save changed pages to the cloud as pictures (a few seconds after editing stops, and when the app is hidden) ----
+  const pushing = useRef(false);
+  const pushAgain = useRef(false);
+  const pushNow = useCallback(async () => {
+    const b = bookRef.current;
+    if (!s.uid || !b) return;
+    if (pushing.current) {
+      pushAgain.current = true;
+      return;
+    }
+    pushing.current = true;
+    try {
+      setSync((x) => ({ ...x, state: "syncing" }));
+      const { error } = await pushBook(s.uid, b);
+      setSync(error ? { state: "error", msg: error } : { state: "ok" });
+    } catch (e) {
+      setSync({ state: "error", msg: describeSyncError(e) });
+    } finally {
+      pushing.current = false;
+      if (pushAgain.current) {
+        pushAgain.current = false;
+        void pushNow();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.uid]);
+  useEffect(() => {
+    const on = () => {
+      if (document.visibilityState === "hidden") void pushNow();
+    };
+    document.addEventListener("visibilitychange", on);
+    return () => document.removeEventListener("visibilitychange", on);
+  }, [pushNow]);
 
   // ---- canvas fit ----
   useEffect(() => {
@@ -376,6 +389,37 @@ export default function EditorApp() {
       if (fileRef.current) fileRef.current.value = "";
     }
   };
+  // fills the tapped empty frame with the first photo, and the other empty frames with any more photos
+  const fillSlots = async (files: FileList | null) => {
+    const id = slotIdRef.current;
+    slotIdRef.current = null;
+    if (!files || !page || !id) return;
+    setBusy("Adding photos…");
+    try {
+      const pics: string[] = [];
+      for (const f of Array.from(files)) {
+        if (f.type.startsWith("image/")) pics.push((await fileToPhoto(f)).src);
+      }
+      if (!pics.length) return;
+      track("photo_added", { count: pics.length, via: "frame" });
+      snapshot();
+      const pid = page.id;
+      const fill = new Map<string, string>();
+      setPages((ps) =>
+        ps.map((p) => {
+          if (p.id !== pid) return p;
+          const empties = [id, ...p.items.filter((i) => i.kind === "photo" && !i.src && i.id !== id).map((i) => i.id)];
+          empties.slice(0, pics.length).forEach((eid, n) => fill.set(eid, pics[n]));
+          return { ...p, updated: Date.now(), items: p.items.map((i) => (fill.has(i.id) ? { ...i, src: fill.get(i.id) } : i)) };
+        }),
+      );
+      setSelectedId(id);
+    } finally {
+      setBusy("");
+      if (slotFileRef.current) slotFileRef.current.value = "";
+    }
+  };
+
   const setFrame = (frame: PhotoFrame) => {
     if (!selected || selected.kind !== "photo") return;
     const old = selected.frame ?? "polaroid";
@@ -386,6 +430,7 @@ export default function EditorApp() {
 
   // ---- pages ----
   const addPage = () => {
+    track("page_created");
     if (!book || !page) return;
     snapshot();
     const base = page.kind === "day" ? page.bg : "lined";
@@ -410,6 +455,27 @@ export default function EditorApp() {
     note("Page deleted");
   };
 
+  // a page that came from the cloud is a picture: give it an editable copy, or start a cover / end page over
+  const editCopy = () => {
+    if (!page?.flat) return;
+    if (page.kind === "cover" || page.kind === "back") {
+      if (!confirm("Start this page over with a fresh design? The saved picture will be replaced.")) return;
+      const fresh = page.kind === "back" ? makeBack(s.name) : makeCover(s.name);
+      patchPage(page.id, { items: fresh.items, bg: fresh.bg, frame: undefined, flat: undefined });
+      note("Ready to edit");
+      return;
+    }
+    const np: Page = { id: uid(), kind: "day", bg: "lined", date: todayKey(), updated: Date.now(), items: [{ id: uid(), kind: "img", src: page.flat, x: 0, y: 0, w: PAGE_W, h: PAGE_H, r: 0 }] };
+    setPages((ps) => {
+      const i = ps.findIndex((x) => x.id === page.id);
+      const out = [...ps];
+      out.splice(i + 1, 0, np);
+      return out;
+    });
+    setPageIdx(idx + 1);
+    note("Editable copy made. Add things on top of the picture.");
+  };
+
   const restyleCover = (theme: CoverTheme) => {
     if (!page || !confirm("Replace this page with a fresh design? Your current items on it will be removed.")) return;
     snapshot();
@@ -423,8 +489,10 @@ export default function EditorApp() {
     if (!t || !page) return;
     if (page.items.length && !confirm("This replaces everything on the page with the layout. Continue?")) return;
     snapshot();
+    track("template_applied", { template: t.id });
     patchPage(page.id, { items: t.build(), bg: t.bg, frame: undefined });
     setSelectedId(null);
+    if (t.build().some((i) => i.kind === "photo" && !i.src)) note("Tap a photo frame to add your photo");
   };
 
   // layering: items keep their order; these move one item up or down the pile
@@ -465,6 +533,7 @@ export default function EditorApp() {
   };
 
   const runAutoCutout = async () => {
+    track("cutout", { kind: "people" });
     if (!selected || selected.kind !== "photo" || !selected.src) return;
     const it = selected;
     setBusy("Cutting out…");
@@ -483,6 +552,7 @@ export default function EditorApp() {
 
   // remove a plain background (stickers, objects on a table…); the slider re-runs it with a new sensitivity
   const runPlainCut = async (tol: number, id?: string, src?: string, w?: number) => {
+    track("cutout", { kind: "plain" });
     const it = selected;
     const target = id ?? it?.id;
     const source = src ?? it?.src;
@@ -586,6 +656,7 @@ export default function EditorApp() {
 
   // ---- export ----
   const run = async (label: string, fn: () => Promise<unknown>, done?: string | ((r: unknown) => string)) => {
+    track("export", { action: label.replace(/[^A-Za-z ]/g, "").trim() });
     setMenu(false);
     setSelectedId(null);
     setBusy(label);
@@ -752,6 +823,17 @@ export default function EditorApp() {
             ))}
           </nav>
 
+          {page.flat ? (
+            <div className="panel-body">
+              <div className="form">
+                <label className="lbl">A saved picture</label>
+                <p className="hint">This page was saved from another device as a picture, so you can flip through it, save it, share it or print it here. To change it, make an editable copy.</p>
+                <button className="btn primary wide" onClick={editCopy}>
+                  {page.kind === "day" ? "Make an editable copy" : "Start this page over"}
+                </button>
+              </div>
+            </div>
+          ) : (
           <div
             className="panel-body"
             onScroll={(e) => {
@@ -1053,13 +1135,7 @@ export default function EditorApp() {
                   </>
                 )}
                 <label className="lbl">Page layouts</label>
-                <div className="chips wrap">
-                  {TEMPLATES.map((t) => (
-                    <button key={t.id} className="chip" onClick={() => applyTemplate(t.id)}>
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
+                <TemplateGrid onPick={applyTemplate} />
                 <label className="lbl">Plain paper</label>
                 <div className="dots">
                   {PLAIN.map((b) => (
@@ -1123,11 +1199,18 @@ export default function EditorApp() {
               </div>
             )}
           </div>
+          )}
         </aside>
 
         <main className="stage">
+          <input ref={slotFileRef} type="file" accept="image/*" multiple hidden onChange={(e) => void fillSlots(e.target.files)} />
           <div className="canvas-area" ref={areaRef}>
-            {area.w > 0 && (
+            {area.w > 0 && page.flat && (
+              <div className="flatview">
+                <PageStatic page={page} width={PAGE_W * k} />
+              </div>
+            )}
+            {area.w > 0 && !page.flat && (
               <EditorCanvas
                 page={page}
                 k={k}
@@ -1137,7 +1220,8 @@ export default function EditorApp() {
                 onSelect={(id) => {
                   setSelectedId(id);
                   // picking a photo jumps straight to its cut-out / background tools
-                  if (id && page.items.find((i) => i.id === id)?.kind === "photo") {
+                  const picked = page.items.find((i) => i.id === id);
+                  if (id && picked?.kind === "photo" && picked.src) {
                     setTab("edit");
                     setPanelOpen(true);
                   }
@@ -1155,6 +1239,10 @@ export default function EditorApp() {
                 }}
                 onStroke={onStroke}
                 onCutPath={onCutPath}
+                onSlot={(sid) => {
+                  slotIdRef.current = sid;
+                  slotFileRef.current?.click();
+                }}
               />
             )}
           </div>

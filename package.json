@@ -12,6 +12,7 @@
     "android:icons": "node scripts_make_icons.mjs && capacitor-assets generate --android --assetPath assets"
   },
   "dependencies": {
+    "@capacitor-firebase/analytics": "^8.6.0",
     "@capacitor/android": "^8.5.3",
     "@capacitor/app": "^8.1.2",
     "@capacitor/core": "^8.5.3",
@@ -24,7 +25,7 @@
     "html-to-image": "^1.11.13",
     "idb-keyval": "^6.3.0",
     "jspdf": "^4.2.1",
-    "next": "16.4.3",
+    "next": "16.4.6",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-pageflip": "^2.0.3"
@@ -36,8 +37,13 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.4.3",
+    "eslint-config-next": "16.4.6",
     "sharp": "^0.35.5",
     "typescript": "^5"
+  },
+  "overrides": {
+    "@capacitor-firebase/analytics": {
+      "firebase": "$firebase"
+    }
   }
 }

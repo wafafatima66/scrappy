@@ -1,14 +1,17 @@
-import { collection, deleteDoc, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
-import { deleteObject, getDownloadURL, ref, uploadString } from "firebase/storage";
-import { fbDb, fbStorage } from "./firebase";
+import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
+import { fbDb } from "./firebase";
 import { clearDeleted, readDeleted } from "./store";
 import { Book, Page } from "./types";
 
-// Cloud backup: one Firestore document per page (so no single document gets too big),
-// photos in Firebase Storage. The device copy is always the working copy; the cloud is
-// merged in when the app opens and written to after edits.
+// Cloud backup, kept tiny on purpose:
+//  - every page is saved to Firestore as ONE picture (WebP) plus a few small fields
+//  - the photos people add are NEVER uploaded; they only live on the device that made the page, so it stays editable there
+//  - users/{uid} holds the page order and a small "page id -> last changed" list, so opening the app costs one read
+//    plus one read for each page that actually changed on another device
+// A page that arrives from the cloud is a picture (page.flat): it can be flipped, exported and shared on any device.
 
-const SYNCED = (uid: string) => `patchlet.synced.${uid}`;
+const SYNCED = (uid: string) => `patchlet.synced2.${uid}`;
+const ORDER = (uid: string) => `patchlet.order2.${uid}`;
 const readSynced = (uid: string): Record<string, number> => {
   try {
     return JSON.parse(localStorage.getItem(SYNCED(uid)) ?? "{}");
@@ -24,28 +27,57 @@ const writeSynced = (uid: string, m: Record<string, number>) => {
 
 const clean = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 
+// pages saved by older versions still have their items; new ones have a picture
+const toPage = (d: Record<string, unknown>): Page => {
+  const r = d as unknown as Page & { preview?: string };
+  if (r.preview) {
+    const { preview, ...rest } = r;
+    return { ...rest, items: [], flat: preview };
+  }
+  return { ...r, items: r.items ?? [] };
+};
+
 export async function pullAndMerge(uid: string, local: Book): Promise<Book> {
   const db = fbDb();
-  const [userSnap, pageSnap] = await Promise.all([getDoc(doc(db, "users", uid)), getDocs(collection(db, "users", uid, "pages"))]);
-  const remote = new Map<string, Page>();
+  const userSnap = await getDoc(doc(db, "users", uid));
+  const data = userSnap.data();
+  const order: string[] = (data?.order as string[] | undefined) ?? [];
+  const known = data?.pages as Record<string, number> | undefined; // page id -> last changed
   const gone = new Set(readDeleted(uid).map((d) => d.id));
-  pageSnap.forEach((d) => {
-    if (!gone.has(d.id)) remote.set(d.id, d.data() as Page);
-  });
-  if (remote.size === 0) return local;
-
-  const order: string[] = (userSnap.data()?.order as string[] | undefined) ?? [];
   const byId = new Map(local.pages.map((p) => [p.id, p]));
   const synced = readSynced(uid);
-  // a page that was already in the cloud but isn't any more (and wasn't edited here since) was deleted on another device
-  Array.from(byId.values()).forEach((lp) => {
-    if (lp.kind === "day" && synced[lp.id] !== undefined && !remote.has(lp.id) && (lp.updated ?? 0) <= synced[lp.id]) byId.delete(lp.id);
-  });
-  remote.forEach((rp, id) => {
-    const lp = byId.get(id);
+
+  // which pages do we need to download?
+  const fetched: Page[] = [];
+  if (known) {
+    const want = Object.keys(known).filter((id) => !gone.has(id) && (!byId.has(id) || (known[id] ?? 0) > (byId.get(id)?.updated ?? 0)));
+    const snaps = await Promise.all(want.map((id) => getDoc(doc(db, "users", uid, "pages", id))));
+    snaps.forEach((s) => {
+      if (s.exists()) fetched.push(toPage(s.data()));
+    });
+    // a page that was in the cloud before, isn't any more and wasn't changed here since: it was deleted on another device
+    Array.from(byId.values()).forEach((lp) => {
+      if (lp.kind === "day" && synced[lp.id] !== undefined && known[lp.id] === undefined && (lp.updated ?? 0) <= synced[lp.id]) byId.delete(lp.id);
+    });
+  } else {
+    // an account saved before the picture format: read everything once
+    const all = await getDocs(collection(db, "users", uid, "pages"));
+    all.forEach((d) => {
+      if (!gone.has(d.id)) {
+        const rp = toPage(d.data());
+        const lp = byId.get(rp.id);
+        if (!lp || (rp.updated ?? 0) > (lp.updated ?? 0)) fetched.push(rp);
+      }
+    });
+  }
+  if (fetched.length === 0 && byId.size === local.pages.length) return local;
+
+  fetched.forEach((rp) => {
+    const lp = byId.get(rp.id);
+    // never replace a page that is newer on this device
     if (!lp || (rp.updated ?? 0) > (lp.updated ?? 0)) {
-      byId.set(id, rp);
-      synced[id] = rp.updated ?? 0;
+      byId.set(rp.id, rp);
+      synced[rp.id] = rp.updated ?? 0;
     }
   });
   writeSynced(uid, synced);
@@ -62,82 +94,71 @@ export async function pullAndMerge(uid: string, local: Book): Promise<Book> {
 }
 
 export interface PushResult {
-  swapped: Record<string, string>; // data URI -> download URL
   error?: string; // plain-English reason when something could not be backed up
 }
 
 export function describeSyncError(e: unknown): string {
   const code = String((e as { code?: string })?.code ?? "");
   const msg = String((e as { message?: string })?.message ?? e ?? "");
-  if (/storage\//.test(code) || /storage/i.test(msg)) return "Your pages are backed up, but photos can't be uploaded yet. Firebase Storage needs to be switched on (Build → Storage → Get started).";
   if (code.includes("permission-denied")) return "The cloud refused the backup. Check the Firestore rules in Firebase.";
+  if (code.includes("invalid-argument") || /maximum allowed size|too large|too big/i.test(msg)) return "One page is too big to back up. Try removing a few heavy items from it.";
   if (code.includes("unavailable") || code.includes("network") || /offline|network|fetch/i.test(msg)) return "No internet right now. Your work is safe on this device and will back up later.";
   return "Couldn't back up everything yet. It will try again.";
 }
 
-// Writes changed pages to the cloud. A page that fails (for example because photo storage isn't switched on)
-// never blocks the other pages: it is written without the photos it couldn't upload and retried next time.
+// Saves changed pages as pictures. A page that fails never blocks the others; it is retried next time.
 export async function pushBook(uid: string, book: Book): Promise<PushResult> {
   const db = fbDb();
+  const userRef = doc(db, "users", uid);
   const synced = readSynced(uid);
-  const swapped: Record<string, string> = {};
   let error: string | undefined;
+  const changed: Record<string, number> = {};
+  const removedIds: Record<string, ReturnType<typeof deleteField>> = {};
 
-  const removed = readDeleted(uid);
-  for (const d of removed) {
+  for (const d of readDeleted(uid)) {
     try {
       await deleteDoc(doc(db, "users", uid, "pages", d.id));
-      for (const pid of d.photos) {
-        for (const f of [`${pid}.jpg`, `${pid}-cut.png`, `${pid}-bg.jpg`]) await deleteObject(ref(fbStorage(), `users/${uid}/photos/${f}`)).catch(() => undefined);
-      }
+      removedIds[d.id] = deleteField();
       clearDeleted(uid, [d.id]);
     } catch (e) {
       error = describeSyncError(e); // try again next time
     }
   }
 
-  const up = async (data: string, name: string) => {
-    if (swapped[data]) return swapped[data];
-    const r = ref(fbStorage(), `users/${uid}/photos/${name}`);
-    await uploadString(r, data, "data_url");
-    const url = await getDownloadURL(r);
-    swapped[data] = url;
-    return url;
-  };
-
+  const { pageToWebp } = await import("./exporter");
   for (const p of book.pages) {
-    if ((p.updated ?? 0) <= (synced[p.id] ?? 0)) continue;
-    const items = [];
-    let complete = true;
-    for (const it of p.items) {
-      if (it.kind !== "photo") {
-        items.push(it);
-        continue;
-      }
-      try {
-        let n = it;
-        if (n.src?.startsWith("data:")) n = { ...n, src: await up(n.src, `${it.id}.jpg`) };
-        if (n.cut?.startsWith("data:")) n = { ...n, cut: await up(n.cut, `${it.id}-cut.png`) };
-        if (n.pbg?.k === "photo" && n.pbg.v?.startsWith("data:")) n = { ...n, pbg: { ...n.pbg, v: await up(n.pbg.v, `${it.id}-bg.jpg`) } };
-        items.push(n);
-      } catch (e) {
-        // leave this photo out of the cloud copy for now; the rest of the page still backs up
-        complete = false;
-        error = describeSyncError(e);
-      }
-    }
+    if (p.flat) continue; // came from the cloud already as a picture
+    const stamp = p.updated ?? (p.kind === "day" ? 1 : 0);
+    if (stamp <= (synced[p.id] ?? 0)) continue;
     try {
-      await setDoc(doc(db, "users", uid, "pages", p.id), clean({ ...p, items }));
-      if (complete) synced[p.id] = p.updated ?? Date.now();
+      const preview = await pageToWebp(p);
+      const { items: _items, flat: _flat, ...meta } = p;
+      void _items;
+      void _flat;
+      await setDoc(doc(db, "users", uid, "pages", p.id), clean({ ...meta, updated: stamp, preview }));
+      synced[p.id] = stamp;
+      changed[p.id] = stamp;
     } catch (e) {
       error = describeSyncError(e);
     }
   }
+
+  const order = book.pages.map((p) => p.id);
+  const orderKey = order.join(",");
+  let lastOrder = "";
   try {
-    await setDoc(doc(db, "users", uid), { order: book.pages.map((p) => p.id), updated: Date.now() }, { merge: true });
-  } catch (e) {
-    error = describeSyncError(e);
+    lastOrder = localStorage.getItem(ORDER(uid)) ?? "";
+  } catch {}
+  if (Object.keys(changed).length || Object.keys(removedIds).length || orderKey !== lastOrder) {
+    try {
+      await setDoc(userRef, { order, updated: Date.now(), pages: { ...changed, ...removedIds } }, { merge: true });
+      try {
+        localStorage.setItem(ORDER(uid), orderKey);
+      } catch {}
+    } catch (e) {
+      error = describeSyncError(e);
+    }
   }
   writeSynced(uid, synced);
-  return { swapped, error };
+  return { error };
 }

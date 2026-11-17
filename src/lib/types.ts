@@ -48,6 +48,7 @@ export interface Page {
   bg: string; // background id, or "color:#rrggbb"
   frame?: string; // page border id
   items: Item[];
+  flat?: string; // a page that came from the cloud: one picture (WebP) instead of editable items
   updated?: number;
 }
 

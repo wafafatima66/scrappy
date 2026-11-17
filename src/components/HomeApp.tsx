@@ -37,7 +37,7 @@ export default function HomeApp() {
       setBook(b);
       const st = readStreak();
       setStreak(st);
-      const done = b.pages.some((p) => p.kind === "day" && p.date === todayKey() && p.items.length > 0);
+      const done = b.pages.some((p) => p.kind === "day" && p.date === todayKey() && (p.items.length > 0 || !!p.flat));
       void scheduleStreakReminders({ name: s.name, streak: st.count, doneToday: done });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -48,7 +48,7 @@ export default function HomeApp() {
 
   const days = book ? dayPages(book) : [];
   const pages = days.map((p, i) => ({ p, i })).reverse();
-  const doneToday = days.some((p) => p.date === todayKey() && p.items.length > 0);
+  const doneToday = days.some((p) => p.date === todayKey() && (p.items.length > 0 || !!p.flat));
   const week = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));

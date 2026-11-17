@@ -1,5 +1,17 @@
 // Website-wide constants. Change them here (or with the NEXT_PUBLIC_* settings in Vercel).
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://scrappy-jade.vercel.app";
+const DEFAULT_SITE = "https://scrappy-jade.vercel.app";
+// Accepts "example.com" or "https://example.com/"; anything that isn't a web address is ignored so a typo can't break the build.
+function cleanSite(v: string | undefined): string {
+  const t = (v ?? "").trim().replace(/\/+$/, "");
+  if (!t) return DEFAULT_SITE;
+  try {
+    const u = new URL(/^https?:\/\//i.test(t) ? t : `https://${t}`);
+    return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(u.hostname) || u.hostname === "localhost" ? u.origin : DEFAULT_SITE;
+  } catch {
+    return DEFAULT_SITE;
+  }
+}
+export const SITE_URL = cleanSite(process.env.NEXT_PUBLIC_SITE_URL);
 export const PLAY_ID = "com.patchlet.app";
 export const PLAY_URL = `https://play.google.com/store/apps/details?id=${PLAY_ID}`;
 // The "Become a tester" link from Play Console (Testing → Closed testing → Testers). Leave empty until you have it.

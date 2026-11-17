@@ -10,10 +10,10 @@ import {
   signOut,
   updateProfile,
 } from "firebase/auth";
-import { collection, deleteDoc, doc, getDocs, setDoc } from "firebase/firestore";
-import { deleteObject, getDownloadURL, listAll, ref, uploadString } from "firebase/storage";
+import { collection, deleteDoc, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { fbAuth, fbDb, fbStorage, firebaseReady } from "./firebase";
+import { fbAuth, fbDb, firebaseReady } from "./firebase";
+import { track } from "./analytics";
 import { clearAllLocal, getName, setName, setScope } from "./store";
 
 export interface Session {
@@ -46,6 +46,13 @@ function start() {
     if (u) {
       setScope(u.uid);
       publish({ status: "in", uid: u.uid, name: u.displayName || u.email?.split("@")[0] || "friend", email: u.email ?? "", photoURL: u.photoURL ?? "", local: false });
+      // the profile picture is a small image saved on the account
+      getDoc(doc(fbDb(), "users", u.uid))
+        .then((d) => {
+          const a = d.data()?.avatar as string | undefined;
+          if (a) publish({ photoURL: a });
+        })
+        .catch(() => undefined);
     } else {
       setScope("local");
       publish({ status: "out", uid: null, name: "", email: "", photoURL: "", local: false });
@@ -84,9 +91,13 @@ export async function signUp(name: string, email: string, password: string) {
   await updateProfile(cred.user, { displayName: name.trim() });
   await setDoc(doc(fbDb(), "users", cred.user.uid), { name: name.trim(), created: Date.now() }, { merge: true });
   publish({ name: name.trim() });
+  track("sign_up", { method: "email" });
 }
 
-export const signIn = (email: string, password: string) => signInWithEmailAndPassword(fbAuth(), email.trim(), password);
+export const signIn = (email: string, password: string) => signInWithEmailAndPassword(fbAuth(), email.trim(), password).then((r) => {
+  track("login", { method: "email" });
+  return r;
+});
 export const resetPassword = (email: string) => sendPasswordResetEmail(fbAuth(), email.trim());
 export const logout = () => (firebaseReady ? signOut(fbAuth()) : Promise.resolve());
 
@@ -127,12 +138,8 @@ export async function changeAvatar(file: File) {
     publish({ photoURL: data });
     return;
   }
-  const r = ref(fbStorage(), `users/${u.uid}/avatar.jpg`);
-  await uploadString(r, data, "data_url");
-  const url = await getDownloadURL(r);
-  await updateProfile(u, { photoURL: url });
-  await setDoc(doc(fbDb(), "users", u.uid), { photoURL: url }, { merge: true });
-  publish({ photoURL: url });
+  await setDoc(doc(fbDb(), "users", u.uid), { avatar: data }, { merge: true });
+  publish({ photoURL: data });
 }
 
 export function loadLocalAvatar() {
@@ -151,9 +158,6 @@ export async function deleteAccount(password: string) {
     const pages = await getDocs(collection(fbDb(), "users", uid, "pages"));
     await Promise.all(pages.docs.map((d) => deleteDoc(d.ref)));
     await deleteDoc(doc(fbDb(), "users", uid));
-    const photos = await listAll(ref(fbStorage(), `users/${uid}/photos`));
-    await Promise.all(photos.items.map((i) => deleteObject(i)));
-    await deleteObject(ref(fbStorage(), `users/${uid}/avatar.jpg`)).catch(() => undefined);
   } catch {}
   await deleteUser(u);
   await clearAllLocal();

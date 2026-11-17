@@ -21,9 +21,10 @@ interface Props {
   onCutTool: () => void; // scissors handle tapped
   onStroke: (pts: Pt[]) => void; // finished pen stroke (page coordinates)
   onCutPath: (pts: Pt[]) => void; // finished freehand cut (page coordinates)
+  onSlot?: (id: string) => void; // an empty photo frame was tapped
 }
 
-export default function EditorCanvas({ page, k, selectedId, mode, penPreview, onSelect, onItems, onBegin, onDelete, onEditText, onCutTool, onStroke, onCutPath }: Props) {
+export default function EditorCanvas({ page, k, selectedId, mode, penPreview, onSelect, onItems, onBegin, onDelete, onEditText, onCutTool, onStroke, onCutPath, onSlot }: Props) {
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const g = useRef<
     | null
@@ -112,9 +113,16 @@ export default function EditorCanvas({ page, k, selectedId, mode, penPreview, on
   };
 
   const up = (e: React.PointerEvent<HTMLDivElement>) => {
+    const s = g.current;
     pointers.current.delete(e.pointerId);
-    if (pointers.current.size === 0) g.current = null;
-    else if (g.current?.mode === "pinch") {
+    if (pointers.current.size === 0) {
+      // a tap (not a drag) on an empty photo frame opens the photo picker
+      if (s && s.mode === "move" && Math.hypot(e.clientX - s.sx, e.clientY - s.sy) < 8) {
+        const it = itemsRef.current.find((i) => i.id === s.id);
+        if (it && it.kind === "photo" && !it.src) onSlot?.(it.id);
+      }
+      g.current = null;
+    } else if (g.current?.mode === "pinch") {
       const it = itemsRef.current.find((i) => i.id === (g.current as { id: string }).id);
       const [rest] = [...pointers.current.values()];
       g.current = it ? { mode: "move", id: it.id, sx: rest.x, sy: rest.y, ox: it.x, oy: it.y } : null;
@@ -181,7 +189,7 @@ export default function EditorCanvas({ page, k, selectedId, mode, penPreview, on
               onPointerCancel={up}
               onDoubleClick={() => it.kind === "text" && onEditText(it.id)}
             >
-              <ItemBody item={it} />
+              <ItemBody item={it} edit />
             </div>
           ))}
 

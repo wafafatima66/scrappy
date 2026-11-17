@@ -5,6 +5,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { changeAvatar, changeName, deleteAccount, friendlyAuthError, loadLocalAvatar, logout, useSession } from "@/lib/auth";
 import { todayKey } from "@/lib/daily";
 import { isNative } from "@/lib/native";
+import { analyticsChoice, setAppAnalytics } from "@/lib/analytics";
 import { readNotify, scheduleStreakReminders, writeNotify } from "@/lib/notify";
 import { playClick, setSoundOn, soundOn } from "@/lib/sound";
 import { readStreak, loadMainBook } from "@/lib/store";
@@ -17,6 +18,7 @@ export default function ProfileApp() {
   const [name, setName] = useState("");
   const [sound, setSound] = useState(true);
   const [notify, setNotify] = useState({ enabled: true, hour: 20, minute: 0 });
+  const [stats, setStats] = useState(false);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -33,6 +35,7 @@ export default function ProfileApp() {
   useEffect(() => {
     setSound(soundOn());
     setNotify(readNotify());
+    setStats(analyticsChoice() === "yes");
   }, []);
 
   const flash = (m: string) => {
@@ -44,7 +47,7 @@ export default function ProfileApp() {
     setNotify(n);
     writeNotify(n);
     const book = await loadMainBook(s.name);
-    const done = book.pages.some((p) => p.kind === "day" && p.date === todayKey() && p.items.length > 0);
+    const done = book.pages.some((p) => p.kind === "day" && p.date === todayKey() && (p.items.length > 0 || !!p.flat));
     await scheduleStreakReminders({ name: s.name, streak: readStreak().count, doneToday: done });
   };
 
@@ -137,6 +140,22 @@ export default function ProfileApp() {
           </span>
           <input type="checkbox" checked={notify.enabled} onChange={(e) => applyNotify({ ...notify, enabled: e.target.checked })} />
         </label>
+        {isNative() && (
+          <label className="switch-row">
+            <span>
+              <b>Share usage statistics</b>
+              <small>Helps us see which tools get used. No photos or pages.</small>
+            </span>
+            <input
+              type="checkbox"
+              checked={stats}
+              onChange={(e) => {
+                setStats(e.target.checked);
+                void setAppAnalytics(e.target.checked);
+              }}
+            />
+          </label>
+        )}
         {notify.enabled && (
           <label className="switch-row">
             <span>

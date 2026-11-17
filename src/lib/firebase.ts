@@ -1,7 +1,6 @@
 import { FirebaseApp, getApps, initializeApp } from "firebase/app";
 import { Auth, getAuth } from "firebase/auth";
 import { Firestore, getFirestore, initializeFirestore } from "firebase/firestore";
-import { FirebaseStorage, getStorage } from "firebase/storage";
 
 // Fill these in .env.local (see PLAY_STORE_GUIDE.md). Without them the app runs in
 // "local mode": no login, everything stays on the device.
@@ -36,4 +35,3 @@ export const fbDb = (): Firestore => {
   }
   return db;
 };
-export const fbStorage = (): FirebaseStorage => getStorage(getApp());

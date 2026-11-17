@@ -1,3 +1,5 @@
+> **Update:** Patchlet no longer uses Firebase Storage. Each page is saved to Firestore as one small WebP picture and the photos people add never leave their device, so you can skip the Storage step (and the CORS step in Part 7) below.
+
 # Patchlet: from this folder to the Play Store
 
 Everything is in `D:\Scrapbook App\web`. The same code is the website **and** the Android app

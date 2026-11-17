@@ -102,14 +102,14 @@ function Draw({ item }: { item: Item }) {
   );
 }
 
-export default function ItemBody({ item }: { item: Item }) {
+export default function ItemBody({ item, edit }: { item: Item; edit?: boolean }) {
   const clipPath = item.clip && item.clip.length >= 6
     ? `polygon(${Array.from({ length: item.clip.length / 2 }, (_, i) => `${(item.clip![i * 2] * 100).toFixed(2)}% ${(item.clip![i * 2 + 1] * 100).toFixed(2)}%`).join(",")})`
     : item.edge && item.kind !== "text" && item.kind !== "draw"
       ? edgePolygon(item.edge, item.seed ?? 7, item.w, item.h)
       : undefined;
 
-  const body = <Inner item={item} cut={!!clipPath} />;
+  const body = <Inner item={item} cut={!!clipPath} edit={edit} />;
   if (!clipPath) return body;
   return (
     <div style={{ width: "100%", height: "100%", filter: SHADOW }}>
@@ -150,7 +150,7 @@ function CutPhoto({ item }: { item: Item }) {
   );
 }
 
-function Inner({ item, cut }: { item: Item; cut: boolean }) {
+function Inner({ item, cut, edit }: { item: Item; cut: boolean; edit?: boolean }) {
   if (item.kind === "draw") return <Draw item={item} />;
 
   if (item.kind === "img") {
@@ -281,6 +281,34 @@ function Inner({ item, cut }: { item: Item; cut: boolean }) {
   if (item.cut) return <CutPhoto item={item} />;
   const frame = item.frame ?? "polaroid";
   const seed = item.seed ?? 5;
+  // a template's empty photo frame: tap it in the editor to add a photo (plain grey when exported)
+  const picture = (style: React.CSSProperties) =>
+    item.src ? (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={item.src} alt="" draggable={false} style={style} />
+    ) : (
+      <div
+        style={{
+          ...style,
+          filter: undefined,
+          background: edit ? "repeating-linear-gradient(135deg,#efe9fb 0 12px,#e6def6 12px 24px)" : "#e9e4da",
+          display: "grid",
+          placeItems: "center",
+          textAlign: "center",
+          color: "#7c65d6",
+          fontWeight: 800,
+          fontSize: Math.max(11, item.w * 0.075),
+          lineHeight: 1.15,
+        }}
+      >
+        {edit && (
+          <span>
+            ＋<br />
+            photo
+          </span>
+        )}
+      </div>
+    );
   if (frame === "polaroid") {
     const pad = item.w * 0.06;
     return (
@@ -295,13 +323,7 @@ function Inner({ item, cut }: { item: Item; cut: boolean }) {
           boxSizing: "border-box",
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={item.src}
-          alt=""
-          draggable={false}
-          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: "contrast(1.04) saturate(.92) sepia(.08)", pointerEvents: "none" }}
-        />
+        {picture({ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: "contrast(1.04) saturate(.92) sepia(.08)", pointerEvents: "none" })}
       </div>
     );
   }
@@ -309,26 +331,12 @@ function Inner({ item, cut }: { item: Item; cut: boolean }) {
     return (
       <div style={{ width: "100%", height: "100%", filter: cut ? undefined : SHADOW }}>
         <div style={{ width: "100%", height: "100%", background: "#fbf9f3", clipPath: jagged(seed, 0, 2.2) }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={item.src}
-            alt=""
-            draggable={false}
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", clipPath: jagged(seed + 3, 2.4, 1.8), pointerEvents: "none" }}
-          />
+          {picture({ width: "100%", height: "100%", objectFit: "cover", display: "block", clipPath: jagged(seed + 3, 2.4, 1.8), pointerEvents: "none" })}
         </div>
       </div>
     );
   }
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={item.src}
-      alt=""
-      draggable={false}
-      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", border: cut ? undefined : "3px solid #fbf9f3", boxShadow: cut ? undefined : "1px 3px 6px rgba(60,40,20,.4)", boxSizing: "border-box", pointerEvents: "none" }}
-    />
-  );
+  return picture({ width: "100%", height: "100%", objectFit: "cover", display: "block", border: cut ? undefined : "3px solid #fbf9f3", boxShadow: cut ? undefined : "1px 3px 6px rgba(60,40,20,.4)", boxSizing: "border-box", pointerEvents: "none" });
 }
 
 export function itemStyle(it: Item): React.CSSProperties {
