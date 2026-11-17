@@ -50,6 +50,14 @@ const WHY: { icon: string; title: string; text: string }[] = [
 
 const USES = ["Daily planner", "Gratitude page", "Study log", "Travel diary", "Project journal", "Mood tracker", "Reading notes", "Family memories", "Goal board", "Recipe notes"];
 
+const COMPARE: [string, string, string, string][] = [
+  ["Scrapbook-style pages (tape, paper, stamps)", "✓", "Rarely", "Sometimes"],
+  ["Ready layouts with tap-to-fill photo frames", "✓", "Rarely", "Sometimes"],
+  ["A daily habit: one page a day, a streak and a reminder", "✓", "✓", "Not usually"],
+  ["No page or photo limits", "✓", "Some limit photos on free plans", "Some limit free pages"],
+  ["Your photos stay on your own device", "✓", "Varies", "Varies"],
+];
+
 const STEPS = [
   { n: "1", title: "Start today’s page", text: "Type your name once. It goes on your cover and end page. Today’s page opens right away." },
   { n: "2", title: "Decorate it", text: "Add tape, paper, stamps, photos and words. Move things around until it feels like you." },
@@ -57,6 +65,9 @@ const STEPS = [
 ];
 
 const FAQ: { q: string; a: React.ReactNode }[] = [
+  { q: "Do I need design skills to make a scrapbook page?", a: "No. Pick a ready-made layout, tap each empty frame to add a photo, and you already have a finished page. You can add tape, stickers, text and doodles on top whenever you like." },
+  { q: "How do the photo frames work?", a: "Layouts come with empty photo frames. Tap a frame, choose a photo from your phone, and it fills the frame. If you choose several photos at once, they fill the empty frames in order. You can still cut a photo out, change its background or switch it to a torn edge." },
+  { q: "Is there a limit on pages or photos?", a: "No. You can make as many pages as you like and add as many photos as you want to a page. Patchlet is free to use." },
   { q: "Is Patchlet free?", a: "Yes. You can make pages, use every element and save your work for free. Some gentle ads may appear later in a few places, for example when you save a PDF." },
   { q: "Do I need an account?", a: "No. You can start with just your name. If you sign in with your email, your pages are backed up and show up on all your devices, so you never lose them." },
   { q: "Which devices does it work on?", a: "Android phones and tablets through Google Play. There is also a web version you can try in any browser, which is handy for a quick look." },
@@ -92,6 +103,7 @@ export default function Landing() {
           <span className="orb" /> Patchlet
         </a>
         <nav aria-label="Main">
+          <a href="#layouts">Layouts</a>
           <a href="#features">Features</a>
           <a href="#why">Why Patchlet</a>
           <a href="#get">Get the app</a>
@@ -109,7 +121,7 @@ export default function Landing() {
               One scrapbook page a day. <em>A calmer, more creative you.</em>
             </h1>
             <p className="lp-lead">
-              Decorate a page with washi tape, torn paper, stamps, lace, doodles and your own photos. Build a habit, clear your head, and keep the little moments, without the glue and scissors.
+              Pick a ready-made layout, tap a frame, drop in your photo, then add washi tape, stamps and doodles. Build a habit, clear your head, and keep the little moments, without the glue and scissors.
             </p>
             <div className="lp-cta">
               <PlayBtn place="hero" />
@@ -135,6 +147,24 @@ export default function Landing() {
           <h2>What a page can look like</h2>
           <p className="lp-sub">These are real Patchlet pages, made with the same elements you get in the app.</p>
           <HeroPages mode="gallery" />
+        </section>
+
+        {/* ---------- ready-made layouts ---------- */}
+        <section id="layouts" className="lp-sec">
+          <h2>Pick a layout. Tap a frame. Done.</h2>
+          <p className="lp-sub">
+            No design skills needed. Start from a ready-made page, like an everyday vlog, a photo booth strip or a friendship collage. Tap an empty frame and choose your photo. Pick several at once and they fill the frames in order. Every tape, sticker and word stays yours to move, resize or delete.
+          </p>
+          <HeroPages mode="layouts" />
+          <ul className="lp-ticks">
+            <li>Photo frames that fill with one tap</li>
+            <li>Everyday vlog, photo booth, collage, timeline and more</li>
+            <li>Change anything, or start from a blank page</li>
+          </ul>
+          <div className="lp-cta">
+            <PlayBtn place="layouts" />
+            <WebBtn place="layouts" label="Try a layout on the web" />
+          </div>
         </section>
 
         {/* ---------- features ---------- */}
@@ -177,6 +207,37 @@ export default function Landing() {
               <li key={u}>{u}</li>
             ))}
           </ul>
+        </section>
+
+        {/* ---------- comparison ---------- */}
+        <section id="compare" className="lp-sec">
+          <h2>How Patchlet is different</h2>
+          <p className="lp-sub">Most journal apps are built for text, and most design apps start with a blank canvas. Patchlet is built for one scrapbook page a day.</p>
+          <div className="lp-tablewrap">
+            <table className="lp-table">
+              <thead>
+                <tr>
+                  <th scope="col"> </th>
+                  <th scope="col" className="us">
+                    Patchlet
+                  </th>
+                  <th scope="col">Text-first journal apps</th>
+                  <th scope="col">Design and collage apps</th>
+                </tr>
+              </thead>
+              <tbody>
+                {COMPARE.map((r) => (
+                  <tr key={r[0]}>
+                    <th scope="row">{r[0]}</th>
+                    <td className="us">{r[1]}</td>
+                    <td>{r[2]}</td>
+                    <td>{r[3]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="lp-small">A general look at popular apps in 2026. Plans and features change, so check each app’s own page.</p>
         </section>
 
         {/* ---------- how ---------- */}
